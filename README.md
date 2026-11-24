@@ -36,7 +36,16 @@ Portions adapted from or inspired by:
 | `05-deploy` | `release` | User-only | GitFlow release, SemVer, `CHANGELOG.md`, Change Committee doc |
 | `06-ops` | `diagnosing-bugs` | On-demand | Tight red feedback loop → root cause → regression test |
 
-## Usage (Node >= 20, zero dependencies)
+## Quick Install (Node >= 20, zero dependencies)
+
+```sh
+npx github:poramet-mek/instinct install --apply                          # all agents (claude, codex, agy, gemini)
+npx github:poramet-mek/instinct install --apply --target claude,codex    # selected agents
+npx github:poramet-mek/instinct list                                     # list all 22 skills
+npx github:poramet-mek/instinct uninstall --apply                        # removes only instinct skills
+```
+
+### Local Development
 
 ```sh
 node bin/instinct.js list
