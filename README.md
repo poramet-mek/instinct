@@ -8,6 +8,19 @@ Antigravity/Gemini follow). See [docs/spec.md](docs/spec.md).
 
 ## New machine
 
+Windows, one click: download and double-click [`install/windows/setup.cmd`](install/windows/setup.cmd)
+together with `setup.ps1`, or paste in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/poramet-mek/instinct/main/install/windows/setup.ps1 | iex
+```
+
+It installs what is missing (Node, Git, Herdr, claude, codex, gemini, agy), clones instinct
+to `~\instinct` (or pulls it), runs `instinct setup --apply` and `doctor`, then lists the
+logins left to do. Run it again to update. `setup.ps1 -DryRun` shows the plan only.
+
+By hand, any OS:
+
 ```sh
 git clone <repo-url> instinct && cd instinct
 node bin/instinct.js setup            # dry run: lists every change
