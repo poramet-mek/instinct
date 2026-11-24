@@ -1,6 +1,6 @@
 {
   "name": "instinct",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Lean, modular SDLC atomic skills for AI coding agents",
   "license": "MIT",
