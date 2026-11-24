@@ -6,6 +6,17 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const install = require('./install');
+const config = require('../core/config');
+
+const ALL = ['claude', 'codex', 'gemini', 'agy'];
+
+// Agent CLIs found on PATH (with PATHEXT on Windows).
+function detectAgents(env = process.env) {
+  const dirs = String(env.PATH || env.Path || '').split(path.delimiter).filter(Boolean);
+  const exts = process.platform === 'win32' ? ['', ...String(env.PATHEXT || '.EXE;.CMD;.BAT').toLowerCase().split(';')] : [''];
+  const isFile = (f) => { try { return fs.statSync(f).isFile(); } catch { return false; } };
+  return ALL.filter((a) => dirs.some((d) => exts.some((e) => isFile(path.join(d, a + e)))));
+}
 
 const REPO = path.resolve(__dirname, '..');
 const SKILLS = path.join(REPO, 'skills');
@@ -119,8 +130,59 @@ function rules({ apply, home, agents, log, stamp }) {
   return { agent: 'rules', changed: acts.length > 0, skipped };
 }
 
-function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir(), agents, log = console.log } = {}) {
+// Our junctions in ~/.<agent>/skills for an agent that is no longer chosen.
+function unlinkSkills(agent, { apply, home, log }) {
+  const dest = path.join(home, `.${agent}`, 'skills');
+  let names = [];
+  try { names = fs.readdirSync(dest).filter((n) => n.startsWith('_instinct__')); } catch { return; }
+  const ours = names.filter((n) => {
+    const l = path.join(dest, n);
+    const skill = n.slice('_instinct__'.length);
+    return fs.lstatSync(l).isSymbolicLink() && (real(l) === real(path.join(SKILLS, skill)) || staleLink(l, skill));
+  });
+  if (!ours.length) return;
+  log(`\n[skills ${agent}] off — ${apply ? '' : 'would '}unlink ${ours.length}`);
+  if (apply) for (const n of ours) { const l = path.join(dest, n); try { fs.unlinkSync(l); } catch { fs.rmdirSync(l); } }
+}
+
+// Which agents: explicit `agents` (--agents) is saved; else the saved choice; with none saved,
+// ask(detected) when given (interactive CLI) and save it, else all agents, nothing saved (1.0.0).
+function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir(), agents, ask, log = console.log } = {}) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const saved = config.chosenAgents(home);
+  const clean = (list) => list.map((x) => String(x).trim().toLowerCase()).filter(Boolean);
+  const unknown = (list) => list.filter((x) => !ALL.includes(x));
+  let save = Boolean(agents);
+  if (agents) {
+    agents = clean(agents);
+    const bad = unknown(agents);
+    if (bad.length) throw new Error(`unknown agent "${bad[0]}" (valid: ${ALL.join(', ')})`);
+    if (!agents.length) throw new Error(`--agents is empty (valid: ${ALL.join(', ')})`);
+  } else if (saved) agents = saved;
+  else if (ask) {
+    // A typo or an empty answer must never switch every agent off: keep 1.0.0 behavior instead.
+    const answer = clean(ask(detectAgents()) || []);
+    if (!answer.length || unknown(answer).length) {
+      log(`\n[agents] answer ${answer.length ? `has unknown "${unknown(answer)[0]}"` : 'is empty'}; nothing saved, every agent stays on. Re-run setup or pass --agents ${ALL.join(',')}.`);
+    } else { agents = answer; save = true; }
+  }
+  if (agents) agents = ALL.filter((a) => agents.includes(a));
+  if (save) {
+    const f = config.machineConfigPath(home);
+    const text = `# Agents this machine uses (instinct setup). The others are never routed to.\nagents: [${agents.join(', ')}]\n`;
+    if (read(f) !== text) {
+      log(`\n[agents] ${apply ? '' : 'would '}save ${agents.join(', ') || '(none)'} to ${f}`);
+      if (apply) writeFile(f, text, stamp);
+    }
+  }
+  const off = agents ? ALL.filter((a) => !agents.includes(a)) : [];
+  if (off.length) {
+    for (const r of install.run({ mode: 'uninstall', apply, home, agents: off, log: () => {} })) {
+      if (r.changed) log(`\n[off ${r.agent}] ${apply ? 'removed' : 'would remove'} instinct entries`);
+    }
+    for (const a of off) if (a === 'claude' || a === 'codex') unlinkSkills(a, { apply, home, log });
+  }
+  if (agents && !agents.length) { log('\nNo agents chosen.'); return []; }
   const results = install.run({ mode: 'install', apply, home, agents, log: () => {} });
   const label = (a) => (a.includes('-') ? a.replace('-', ' ') : `hooks ${a}`);
   for (const r of results) log(`\n[${label(r.agent)}] ${r.error ? `SKIPPED: ${r.error}` : r.changed ? (apply ? 'updated' : 'would change') : 'no change'}`);
@@ -130,4 +192,4 @@ function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir()
   return results;
 }
 
-module.exports = { setup };
+module.exports = { setup, detectAgents };

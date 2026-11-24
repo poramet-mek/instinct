@@ -122,8 +122,8 @@ test('copies that already match are recorded, so a later shared edit refreshes t
   const shared = path.join(h, '.agents', 'AGENTS.md');
   fs.mkdirSync(path.join(h, '.codex'));
   fs.copyFileSync(shared, path.join(h, '.codex', 'AGENTS.md'));
-  setup({ home: h, apply: true, log: quiet });
+  setup({ home: h, apply: true, agents: ['claude', 'codex', 'gemini', 'agy'], log: quiet });
   fs.appendFileSync(shared, '\nnew rule\n');
-  setup({ home: h, apply: true, log: quiet });
+  setup({ home: h, apply: true, agents: ['claude', 'codex', 'gemini', 'agy'], log: quiet });
   assert.equal(fs.readFileSync(path.join(h, '.codex', 'AGENTS.md'), 'utf8'), fs.readFileSync(shared, 'utf8'));
 });

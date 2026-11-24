@@ -22,7 +22,7 @@ const USAGE = `instinct <command>
   dispatch --role <r> --vendor claude|codex|gemini|agy --task <file> [--model m | --level std|high] [--cwd dir] [--name n] [--lead <id>] [--json]
                                           print (never run) the launch command for a helper in a role
   doctor [--json]                         per agent: rules, hooks, skills, roles (read-only)
-  setup     [--apply] [--agents claude,codex,gemini,agy]  new machine: hooks, skill links, shared rules
+  setup     [--apply] [--agents claude,codex,gemini,agy]  new machine: choose agents (saved in ~/.instinct/config.yml), hooks, skills, rules
   install   [--apply] [--agents claude,codex,gemini,agy]
   uninstall [--apply] [--agents claude,codex,gemini,agy]`;
 
@@ -239,7 +239,17 @@ function main() {
       const rows = d.doctor();
       console.log(a.json ? JSON.stringify(rows, null, 2) : d.format(rows));
     } else if (cmd === 'setup') {
-      require('../install/setup').setup({ apply: a.apply === true, agents: typeof a.agents === 'string' ? a.agents.split(',') : undefined });
+      // Ask on a terminal only; piped or CI runs keep 1.0.0 behavior (all agents, nothing saved).
+      const ask = process.stdin.isTTY ? (found) => {
+        process.stdout.write(`Agents found: ${found.join(', ') || 'none'}.\nWhich will you use? (comma list, Enter = ${found.join(',') || 'none'}): `);
+        const buf = Buffer.alloc(256);
+        let n = 0;
+        try { n = require('fs').readSync(0, buf, 0, buf.length, null); } catch { n = 0; }
+        const line = buf.toString('utf8', 0, n).trim();
+        return line ? line.split(',').map((x) => x.trim().toLowerCase()) : found;
+      } : undefined;
+      require('../install/setup').setup({ apply: a.apply === true, ask,
+        agents: typeof a.agents === 'string' ? a.agents.split(',') : undefined });
     } else if (cmd === 'install' || cmd === 'uninstall') {
       require('../install/install').run({
         mode: cmd, apply: a.apply === true,

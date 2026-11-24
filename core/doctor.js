@@ -116,8 +116,13 @@ const FIX = {
 function doctor({ home = process.env.INSTINCT_HOME || os.homedir(), repo = path.resolve(__dirname, '..') } = {}) {
   const roles = ls(path.join(repo, 'roles')).some((n) => n.endsWith('.md'));
   const rows = [];
+  const chosen = require('./config').chosenAgents(home);
   for (const agent of AGENTS) {
     const add = (check, r) => rows.push({ agent, check, ...r });
+    if (chosen && !chosen.includes(agent)) {
+      for (const c of ['rules', 'hooks', 'skills', 'roles']) add(c, { status: 'off', fix: '' });
+      continue;
+    }
     add('rules', rulesCheck(agent, home));
     add('hooks', hooksCheck(agent, home));
     add('skills', skillsCheck(agent, home, repo));

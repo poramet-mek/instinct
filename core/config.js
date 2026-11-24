@@ -1,6 +1,7 @@
 'use strict';
 // Per-project `.instinct/config.yml` (spec §1). No secrets live here.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { parseFrontmatter } = require('./lesson');
@@ -55,9 +56,25 @@ unavailable: []           # agents never to route or dispatch to, e.g. [claude]
 `;
 }
 
-// Agents that cannot be used now: INSTINCT_UNAVAILABLE=a,b plus `unavailable:` in .instinct/config.yml.
+// Machine-level choice (`instinct setup`): ~/.instinct/config.yml `agents: [...]`. null = not chosen yet, all on.
+const machineConfigPath = (home) => path.join(home, '.instinct', 'config.yml');
+function chosenAgents(home = process.env.INSTINCT_HOME || os.homedir()) {
+  let raw;
+  try { raw = fs.readFileSync(machineConfigPath(home), 'utf8'); } catch { return null; }
+  let list;
+  try { list = parseFrontmatter(raw).agents; } catch (e) {
+    console.error(`warning: ${machineConfigPath(home)} is not readable (${e.message}); every agent counts as on`);
+    return null;
+  }
+  return Array.isArray(list) ? list.map((x) => String(x).trim().toLowerCase()).filter((x) => AGENTS.includes(x)) : null;
+}
+
+// Agents that cannot be used now: not chosen on this machine, INSTINCT_UNAVAILABLE=a,b,
+// or `unavailable:` in the repo's .instinct/config.yml.
 function unavailableAgents(env = process.env, cwd = process.cwd()) {
   const out = new Set(String(env.INSTINCT_UNAVAILABLE || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
+  const chosen = chosenAgents(env.INSTINCT_HOME || os.homedir());
+  if (chosen) for (const a of AGENTS) if (!chosen.includes(a)) out.add(a);
   let cfg = null;
   try { cfg = loadConfig(cwd); } catch { /* unreadable config: env only */ }
   const list = cfg && cfg.unavailable;
@@ -85,4 +102,4 @@ function detectLead(env = process.env, unavailable = []) {
   return unavailable.includes(found) ? 'none' : found;
 }
 
-module.exports = { configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead };
+module.exports = { machineConfigPath, chosenAgents, configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead };
