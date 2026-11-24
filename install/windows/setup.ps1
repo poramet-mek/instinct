@@ -174,7 +174,7 @@ $instinctSetup = @{ failed = $false }
   Invoke-Step 'doctor' "node `"$bin`" doctor" {
     $rows = (& node $bin doctor --json | Out-String) | ConvertFrom-Json
     $rows | Format-Table agent, check, status, fix -AutoSize | Out-Host
-    if (@($rows | Where-Object { $_.status -ne 'ok' }).Count) { throw 'doctor found missing items' }
+    if (@($rows | Where-Object { $_.status -notin @('ok', 'off') }).Count) { throw 'doctor found missing items' }
   }
 
   Write-Host ''

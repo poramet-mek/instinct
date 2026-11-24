@@ -209,3 +209,9 @@ test('-Uninstall keeps a clone without bin/instinct.js', { skip: !win }, () => {
   const { out } = run('-Uninstall', '-Dir', d);
   assert.match(out, /keep\s+.*no .*instinct\.js/);
 });
+
+test('the doctor step does not count agents that are off as missing', () => {
+  const src = require('fs').readFileSync(PS1, 'utf8');
+  const line = src.split('\n').find((l) => /doctor found missing items/.test(l));
+  assert.match(line, /'off'/, 'off rows must be excluded from the failure check');
+});
