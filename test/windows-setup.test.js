@@ -234,3 +234,20 @@ test('Invoke-Step counts a non-terminating cmdlet error as failed', { skip: !win
   assert.match(out, /RESULT failed bad/);
   assert.match(out, /RESULT done good/);
 });
+
+// uninstall.cmd deletes its own folder; cmd reads a batch file line by line, so after powershell
+// returns nothing may be read from disk ("The system cannot find the path specified").
+test('uninstall.cmd survives deleting its own folder', { skip: !win }, () => {
+  const fs = require('fs');
+  const os = require('os');
+  const src = fs.readFileSync(path.resolve(__dirname, '..', 'install', 'windows', 'uninstall.cmd'), 'utf8');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'instinct-uncmd-'));
+  // Same file, with powershell swapped for a delete of its own folder and pause for an echo.
+  const fake = src.replace(/powershell [^&]*/, 'rd /s /q "%~dp0." ').replace(/& pause/, '& echo after %*') + 'echo NEXTLINE\r\n';
+  fs.writeFileSync(path.join(d, 'uninstall.cmd'), fake);
+  const r = spawnSync('cmd.exe', ['/c', path.join(d, 'uninstall.cmd'), 'x'], { encoding: 'utf8', cwd: os.tmpdir() });
+  const out = (r.stdout || '') + (r.stderr || '');
+  assert.equal(fs.existsSync(d), false);
+  assert.match(out, /after x/);
+  assert.doesNotMatch(out, /cannot find the path|NEXTLINE/);
+});

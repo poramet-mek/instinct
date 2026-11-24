@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+### Fixed
+- uninstall.cmd no longer prints "The system cannot find the path specified" after removing its own folder, and pauses as intended.
+
 ## 1.1.2
 
 ### Fixed
