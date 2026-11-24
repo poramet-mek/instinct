@@ -3,7 +3,7 @@
 ## 2.0.1 (2026-11-25)
 
 ### Changed
-- `release` skill now explicitly includes publishing a GitHub Release (`gh release create v<X.Y.Z>`) after pushing the version tag.
+- `release` skill now explicitly includes publishing a GitHub Release (`gh release create v<X.Y.Z>`) after pushing the version tag, and reminds to increment mobile build numbers (`versionCode`, `CFBundleVersion`, Flutter `+N`) when present.
 - `git-workflow` skill is now fully self-contained (removed repo-specific `docs/multi-account-git.md` reference).
 
 ## 2.0.0 (2026-11-25)
