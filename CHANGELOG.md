@@ -1,35 +1,24 @@
 # Changelog
 
-## 1.1.3
-
-### Fixed
-- uninstall.cmd no longer prints "The system cannot find the path specified" after removing its own folder, and pauses as intended.
-
-## 1.1.2
-
-### Fixed
-- Windows uninstall no longer reports a step as done when a cmdlet fails, e.g. the clone folder is in use.
-
-## 1.1.1
-
-### Fixed
-- README documents uninstall (`instinct setup --remove`) and how it differs from `uninstall`.
-
-## 1.1.0
+## 2.0.0 (2026-11-25)
 
 ### Added
-- Choose which agents a machine uses; the others are never routed to (`instinct setup --agents`, saved in `~/.instinct/config.yml`).
-- The Windows installer asks which agents to install; Gemini CLI is off by default and a re-run keeps the saved choice.
-- `instinct agents` and an "instinct: agents" block at session start; skills pick helpers and reviewers only from agents that are on.
-- Routing rules move to `~/.agents/instinct.md`, rewritten by setup; your own lines from the old routing part are kept in `~/.agents/AGENTS.md`.
-- `instinct agents pause <agent> [--until <date>] [--reason ..]` and `resume`.
-- One-click uninstall: `instinct setup --remove` and `install/windows/uninstall.cmd`.
+- 22 lean, modular SDLC atomic skills across 6 core phases (`00-general` through `06-ops`), including:
+  - `instinct-handoff`: Git-grounded session handoff (`HANDOFF.md`) and drift-checked resume.
+  - `retro`: Post-session retrospective to improve living docs, steering files, and checks.
+  - `instinct-concept`: Capture future concepts, RFCs, and POC guardrails (`docs/concepts/`).
+  - `instinct-manual`: Screenshot-backed `user-manual-for-<slug>.md` with iterative discovery, gap reporting, troubleshooting, and target-persona review.
+- 12 orchestrator playbooks under `skills/00-general/instinct/playbooks/`.
+- Zero-dependency Node.js (`>=20`) CLI installer (`bin/instinct.js`) supporting `list`, `install`, and `uninstall` across `claude`, `codex`, `agy`, and `gemini`, plus one-command `npx github:poramet-mek/instinct install --apply`.
+- Multi-account Git and GitHub CLI setup guide (`docs/multi-account-git.md`).
+- Change Committee release packet (`docs/releases/v2.0.0.md`).
 
 ### Fixed
-- The installer no longer reports the doctor step as failed when some agents are off.
+- Installer now forces `copy` mode with `.instinct-managed` marker when run from ephemeral `_npx` or `node_modules` paths, preventing dangling symlinks.
 
-## 1.0.0
+### Changed
+- Rewrote `instinct` to v2.0.0 with concise skills (`<= 80` lines each) and `disable-model-invocation: true` for user-only skills.
+- Updated `README.md` and `test/installer.test.js` for all 22 skills and 12 playbooks.
 
-### Added
-- `instinct setup`: hooks, skill links, shared rules and Gemini context on a new machine.
-- One-click Windows installer (`install/windows/setup.cmd`, or `irm .../setup.ps1 | iex`).
+### Removed
+- Legacy v1.x setup scripts and monolithic prompt templates replaced by modular v2.0.0 skills.

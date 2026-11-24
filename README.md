@@ -1,73 +1,57 @@
-# instinct
+# instinct v2.0.0
 
-Proactive, self-learning skills for a team of AI agents (Claude leads; Codex and
-Antigravity/Gemini follow). See [docs/spec.md](docs/spec.md).
+Lean, modular SDLC atomic skills for AI coding agents (Claude Code, Codex, Antigravity, Gemini CLI).
 
-`reference/mattpocock-skills/` is a copy of [mattpocock/skills](https://github.com/mattpocock/skills)
-(MIT, © 2026 Matt Pocock), kept for reference only. Portions adapted from it keep that credit.
+Zero hooks. Zero session-start bloat. Each skill is concise (~25–40 lines), self-contained, and loaded on demand—with user-only skills (`disable-model-invocation: true`) consuming **0 tokens** during normal coding.
 
-## New machine
+## Credits
+Portions adapted from or inspired by:
+- [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, © 2026 Matt Pocock)
+- [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (by Lauren Tan / `@poteto`)
 
-Windows, one click: download and double-click [`install/windows/setup.cmd`](install/windows/setup.cmd)
-together with `setup.ps1`, or paste in PowerShell:
+## 22 Skills Across 6 Core Phases (1 Orchestrator + 21 Atomic Skills)
 
-```powershell
-irm https://raw.githubusercontent.com/poramet-mek/instinct/main/install/windows/setup.ps1 | iex
-```
+| Phase | Skill | Mode | Purpose |
+|---|---|---|---|
+| `00-general` | `instinct` | User-only | Orchestrator: matches goal to 1 of 12 playbooks |
+| `00-general` | `instinct-ask` | User-only | Read-only repo inventory or single-feature flow trace |
+| `00-general` | `instinct-handoff` | User-only | Git-grounded session handoff (`HANDOFF.md`) & drift-checked resume |
+| `00-general` | `retro` | User-only | Post-session retrospective to improve living docs, steering files, and checks |
+| `01-planning` | `instinct-business` | User-only | Product strategy, commercial packaging, market benchmark, BRD |
+| `01-planning` | `grilling` | On-demand | Design-tree interview to clarify requirements & decisions |
+| `01-planning` | `instinct-concept` | User-only | Capture future concepts, RFCs, POC guardrails (`docs/concepts/`) |
+| `01-planning` | `instinct-plan` | User-only | Requirement record, scope/non-goals, task breakdown, estimates |
+| `02-design` | `instinct-standards` | User-only | `ARCHITECTURE.md`, `CODING_STANDARDS.md`, folder layout, ADRs |
+| `02-design` | `architect` | On-demand | Topology, data flow, module boundaries, security controls |
+| `02-design` | `instinct-figma` | User-only | Figma MCP (1 frame/node at a time) & visual parity checks |
+| `03-build` | `tdd` | On-demand | Red → minimal green → refactor in vertical slices |
+| `03-build` | `git-workflow` | On-demand | GitFlow (`main`, `develop`, `feat/*`, `release/*`, `hotfix/*`) |
+| `03-build` | `unslop` | On-demand | Diff cleanup, remove AI tells, concise code comment rules |
+| `03-build` | `instinct-review` | User-only | Ruthless review (`WILL BREAK/COST/ROT`, `PROJECT RULE`) → `SHIP` |
+| `04-qa` | `verify` | On-demand | Prove work with real command output & failure-path checks |
+| `04-qa` | `instinct-qa-doc` | User-only | E2E drafts (incl. resilience), capture evidence, UAT docs |
+| `04-qa` | `instinct-perf` | User-only | SLA targets, baseline vs after benchmarks, burst tests |
+| `04-qa` | `instinct-pentest` | User-only | Authorized local/staging security & race-condition report |
+| `05-deploy` | `instinct-manual` | User-only | Screenshot-backed `user-manual-for-<slug>.md` with discovery, troubleshooting & target review |
+| `05-deploy` | `release` | User-only | GitFlow release, SemVer, `CHANGELOG.md`, Change Committee doc |
+| `06-ops` | `diagnosing-bugs` | On-demand | Tight red feedback loop → root cause → regression test |
 
-It installs what is missing (Node, Git, Herdr, claude, codex, gemini, agy), clones instinct
-to `~\instinct` (or pulls it), runs `instinct setup --apply` and `doctor`, then lists the
-logins left to do. Run it again to update. `setup.ps1 -DryRun` shows the plan only.
-
-By hand, any OS:
-
-```sh
-git clone <repo-url> instinct && cd instinct
-node bin/instinct.js setup            # dry run: lists every change
-node bin/instinct.js setup --apply    # hooks, skill links (_instinct__<name>), ~/.agents/AGENTS.md, Gemini context
-node bin/instinct.js doctor           # every row should be ok
-```
-
-Re-run after `git pull` to update; it never replaces files that are not instinct's.
-
-### Uninstall
-
-```sh
-node bin/instinct.js setup --remove            # dry run: lists what would be removed
-node bin/instinct.js setup --remove --apply    # undo setup on this machine
-```
-
-Removes only instinct's items: hooks, `_instinct__*` skill links (and agy/Gemini copies),
-`~/.agents/instinct.md`, `~/.instinct/config.yml`, the import lines in `~/.claude/CLAUDE.md`
-and instinct's Gemini context entries. Files you edited are kept and listed; each deleted file
-is backed up as `*.bak-<time>` (links are only unlinked).
-
-`uninstall --apply` (below) is narrower: it removes only the merged hooks and agy/Gemini copies.
-
-## Usage (MVP 1)
+## Quick Install (Node >= 20, zero dependencies)
 
 ```sh
-npm test                                   # node --test, no dependencies
-node bin/instinct.js install               # dry run: shows what would merge into each agent
-node bin/instinct.js install --apply       # merge hooks (backs up each file as *.bak-<time>)
-node bin/instinct.js uninstall --apply     # remove only instinct's entries
-node bin/instinct.js record --tier project --id <kebab-id> --type do|avoid \
-  --rule "..." --why "..." --how "..." [--tags a,b] [--trigger '[{"event":"pre-tool","tool":"shell","command":"git commit*"}]']
+npx github:poramet-mek/instinct install --apply                          # all agents (claude, codex, agy, gemini)
+npx github:poramet-mek/instinct install --apply --target claude,codex    # selected agents
+npx github:poramet-mek/instinct list                                     # list all 22 skills
+npx github:poramet-mek/instinct uninstall --apply                        # removes only instinct skills
 ```
 
-Skills: folders in `skills/` are short (`on-build`); each `name:` keeps the `instinct-` prefix.
-- With skillshare (`skillshare link <instinct>/skills`): commands are `/_instinct__on-build`.
-- Without skillshare: link each folder under the prefixed name, e.g.
-  `ln -s <instinct>/skills/on-build ~/.claude/skills/instinct-on-build` → `/instinct-on-build`.
-- agy: `install --apply` copies them as `instinct-on-build` (agy follows no symlinks).
+### Local Development
 
-Lessons: `lessons/` (general) and `<project>/.instinct/lessons/` (project), each with `INDEX.md`.
-Trigger events: `session-start`, `prompt`, `pre-tool` (`tool: shell|edit`, `command`, `path`), `post-edit` (`path`).
-
-| Agent | Config | Events used |
-|---|---|---|
-| Claude | `~/.claude/settings.json` | SessionStart, UserPromptSubmit, PreToolUse, PostToolUse |
-| Codex | `~/.codex/hooks.json` (approve via `/hooks`) | same |
-| agy | `~/.gemini/config/hooks.json` | SessionStart, PreInvocation (prompt lessons only) |
-
-Hooks only inject context and fail open; they never block a tool.
+```sh
+node bin/instinct.js list
+node bin/instinct.js install                                  # dry run
+node bin/instinct.js install --apply                          # all agents
+node bin/instinct.js install --apply --target claude,codex    # selected agents
+node bin/instinct.js uninstall --apply                        # removes only instinct skills
+npm test
+```
