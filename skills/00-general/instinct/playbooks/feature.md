@@ -11,4 +11,4 @@ Use for medium-to-large features on `develop`.
 7. `instinct-standards` — *(If architecture, boundaries, APIs, or concepts changed)* Sync `ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/concepts/` status, and record an ADR if a new architectural decision was made.
 8. `unslop` — Clean diff, remove AI tells, enforce concise comment rules.
 9. `instinct-review` — Ruthless diff review (`SHIP` / `DO NOT SHIP`).
-10. `git-workflow` — Clean commit and PR into `develop`.
+10. `git-workflow` — After QA/review passes, commit, push, and open PR into `develop`.

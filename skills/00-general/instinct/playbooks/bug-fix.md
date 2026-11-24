@@ -8,4 +8,4 @@ Use for non-urgent bugs fixed on `develop`.
 4. `verify` — Confirm red loop is green and full test suite passes.
 5. `unslop` — Remove temporary debug instrumentation and clean diff.
 6. `instinct-review` — Review diff (`SHIP` / `DO NOT SHIP`).
-7. `git-workflow` — Clean commit and PR into `develop`.
+7. `git-workflow` — After QA/review passes, commit, push, and open PR into `develop`.
