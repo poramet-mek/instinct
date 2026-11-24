@@ -117,7 +117,7 @@ on the issue.
 Any repo in the owner's dev folder (the parent of the instinct repo) may be read. To learn something from another workspace:
 1. Read its code and docs directly, read-only. This answers most questions.
 2. Need a command there (tests, a read-only query) → only if you are the lead agent inside
-   Herdr, start your own helper as `~/.agents/AGENTS.md` says (`hc run --bg --name <n>
+   Herdr, start your own helper as `~/.agents/instinct.md` says (`hc run --bg --name <n>
    --cwd <repo> -- <vendor cmd>`), with a read-only task reporting via `hc send <your literal
    id>`. Otherwise hand it to a helper (see `<instinct>/docs/agents.md` (`<instinct>` is the repo holding this skill; resolve the symlink)) that reads that repo.
 3. Message a session already open there only when its own context is needed, and tell the
@@ -137,7 +137,7 @@ Any repo in the owner's dev folder (the parent of the instinct repo) may be read
   A fresh worktree has no untracked files: the builder installs dependencies there
   (`npm ci`, `flutter pub get`, …) and that setup does not count as a fix round. Tests that
   need secrets or `.env` → park the ticket; never copy secrets into a worktree.
-- **Vendors.** One available vendor per ticket in the round (gemini, codex, agy, claude), using
+- **Vendors.** One vendor per ticket in the round, from those `on` in the "instinct: agents" block, using
   `instinct route --type build --size <S|M|L> [--design] [--red] --skip <vendors already used this round, and failed ones>`;
   fallback as in `instinct-on-delegate` step 4. More tickets than vendors → extra helpers of the lead's own agent
   (see `<instinct>/docs/agents.md` (`<instinct>` is the repo holding this skill; resolve the symlink) for starting one).

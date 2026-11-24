@@ -1,11 +1,11 @@
 ---
 name: instinct-handoff
-description: Write a hand-off so another session or agent (Claude, Codex, agy) can continue the work, or take a pending one. Use on your own when switching agent, switching directory, handing to a colleague, or when the user says "ส่งต่องาน", "handoff", "ทำต่อ". When staying in the same session and directory, prefer compact.
+description: Write a hand-off so another session or agent (any agent that is on, per the "instinct: agents" block) can continue the work, or take a pending one. Use on your own when switching agent, switching directory, handing to a colleague, or when the user says "ส่งต่องาน", "handoff", "ทำต่อ". When staying in the same session and directory, prefer compact.
 ---
 
 # handoff
 
-Write a hand-off so another session or agent (Claude, Codex, agy) can continue the work.
+Write a hand-off so another session or agent can continue the work. Hand only to an agent `on` in the "instinct: agents" block (`instinct agents`).
 Use it ONLY when switching agent, switching directory, handing to a colleague, or when the user asks;
 when staying in the same place, a compact is better.
 

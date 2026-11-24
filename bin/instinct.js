@@ -21,7 +21,8 @@ const USAGE = `instinct <command>
                                           agent + cross-vendor reviewer; --size picks by task fit, else build rotates vendors
   dispatch --role <r> --vendor claude|codex|gemini|agy --task <file> [--model m | --level std|high] [--cwd dir] [--name n] [--lead <id>] [--json]
                                           print (never run) the launch command for a helper in a role
-  doctor [--json]                         per agent: rules, hooks, skills, roles (read-only)
+  agents [--json]                         each agent: on, off (not chosen) or unavailable (<reason>)
+  doctor [--json]                       per agent: rules, hooks, skills, roles (read-only)
   setup     [--apply] [--agents claude,codex,gemini,agy]  new machine: choose agents (saved in ~/.instinct/config.yml), hooks, skills, rules
   install   [--apply] [--agents claude,codex,gemini,agy]
   uninstall [--apply] [--agents claude,codex,gemini,agy]`;
@@ -234,6 +235,10 @@ function main() {
         cwd: str('cwd'), name: str('name'), lead: str('lead'), unavailable: unavail, leadAgent: cfg.detectLead(process.env, unavail) });
       console.log(a.json ? JSON.stringify(r, null, 2) : r.command);
       if (!a.json && r.note) console.error(`note: ${r.note}`);
+    } else if (cmd === 'agents') {
+      const rows = require('../core/config').agentStatus(process.env, process.cwd());
+      const word = (r) => (r.status === 'on' ? 'on' : r.status === 'off' ? 'off (not chosen)' : `unavailable (${r.reason})`);
+      console.log(a.json ? JSON.stringify(rows, null, 2) : rows.map((r) => `${r.agent.padEnd(7)} ${word(r)}`).join('\n'));
     } else if (cmd === 'doctor') {
       const d = require('../core/doctor');
       const rows = d.doctor();

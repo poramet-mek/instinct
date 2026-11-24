@@ -21,6 +21,7 @@ function detectAgents(env = process.env) {
 const REPO = path.resolve(__dirname, '..');
 const SKILLS = path.join(REPO, 'skills');
 const POINTER = '@~/.agents/AGENTS.md';
+const POINTER_ROUTING = '@~/.agents/instinct.md';
 const real = (f) => { try { return fs.realpathSync(f); } catch { return null; } };
 const read = (f) => { try { return fs.readFileSync(f, 'utf8').replace(/^﻿/, ''); } catch { return null; } };
 const lf = (t) => t.replace(/\r\n/g, '\n');
@@ -71,26 +72,90 @@ function staleLink(link, n) {
 
 const sha = (t) => crypto.createHash('sha256').update(lf(t)).digest('hex');
 
-// ~/.agents/AGENTS.md from the template, then each agent's way of reading it.
+// Routing rules are instinct's (~/.agents/instinct.md, rewritten every run); ~/.agents/AGENTS.md is
+// the owner's and only seeded. Claude imports both; Codex/Gemini get the two merged.
+const ROUTING = ['# Agent routing', '## Do it yourself', '## Subagents', '## Other agents via hc',
+  '## Rules for every delegation', '## When Claude is out of tokens'];
+const LAUNCH = { claude: '- Claude:', codex: '- Codex:', gemini: '- Gemini CLI:', agy: '- Antigravity:' };
+
+// The routing template with only the chosen agents' launch lines.
+function renderRouting(agents) {
+  const t = lf(read(path.join(REPO, 'templates', 'AGENTS.md'))).split('<instinct>').join(REPO.replace(/\\/g, '/'));
+  return t.split('\n').filter((l) => !Object.entries(LAUNCH).some(([a, p]) => l.startsWith(p) && agents && !agents.includes(a))).join('\n');
+}
+
+// An old shared file (1.0.x) holding the routing sections: { kept, moved } split by `## ` heading.
+function splitRouting(text) {
+  const t = lf(text);
+  if (!/^# Agent routing/m.test(t)) return null;
+  const parts = t.split(/^(?=#{1,2} )/m);
+  const isRouting = (p) => ROUTING.some((h) => p.startsWith(h));
+  const kept = parts.filter((p) => /^#{1,2} /.test(p) && !isRouting(p));
+  const moved = parts.filter((p) => !kept.includes(p));
+  if (!moved.some((p) => p.startsWith('## '))) return null;
+  // Lines the owner wrote into routing sections (not in this or the 1.0.x template) stay in their file.
+  const known = new Set([...renderRouting(null).split('\n'), ...OLD_LINES].map((l) => l.trim()));
+  const extra = moved.flatMap((p) => p.split('\n')).filter((l) => l.trim() && !/^#{1,6} /.test(l) && !known.has(l.trim()));
+  const keep = extra.length ? [`## ${KEPT}\n${extra.join('\n')}\n`] : [];
+  return { kept: ['# My rules (every agent)\n\n', ...kept, ...keep].join('').replace(/\n*$/, '\n'),
+    moved: moved.map((p) => p.split('\n')[0]), extra };
+}
+const KEPT = 'Kept from your old routing';
+// Lines of the 1.0.x routing template that 1.1 reworded; they are not the owner's own.
+const OLD_LINES = [
+  '# Agent routing (shared by Claude Code, Codex, Gemini CLI and Antigravity)',
+  'Source of truth: `~/.agents/AGENTS.md`, written by `instinct setup`. Claude imports it from',
+  '`~/.claude/CLAUDE.md`; Codex and Gemini read their own copy, which setup refreshes. Edit only this file.',
+  "Launch (Windows; templates don't work):",
+  '  `instinct route --type build` for both (it rotates gemini → codex → agy → Claude subagent until each',
+  'If `$HC_TERMINAL_ID` is empty (not in Herdr), use a headless CLI (`codex exec "<task>"`, or `gemini.cmd -p "<task>" --approval-mode plan` for a review);',
+  'if no other vendor can be reached, fall back to a Claude subagent and say so.',
+  'The owner opens a backup lead in the same folder, in this order: Codex, then Gemini CLI.',
+  '- Antigravity: `hc run --bg --name <n> --cwd <dir> -- agy -i "<task>"` (give it a narrow, read-only scope when possible)',
+  '`You are the lead now. Read <instinct>/skills/autopilot/SKILL.md and .scratch/<feature>/autopilot.md, verify the state against git as the skill says, then continue.`',
+  'Builds and reviews then go through `instinct dispatch` (roles in <instinct>/roles/) with `--skip claude`.',
+].map((l) => l.split('<instinct>').join(REPO.replace(/\\/g, '/')));
+
+const merged = (personal, routing) => `${lf(personal).replace(/\n*$/, '\n')}\n${lf(routing)}`;
+
 function rules({ apply, home, agents, log, stamp }) {
   const shared = path.join(home, '.agents', 'AGENTS.md');
-  const want = read(path.join(REPO, 'templates', 'AGENTS.md')).split('<instinct>').join(REPO.replace(/\\/g, '/'));
+  const routingFile = path.join(home, '.agents', 'instinct.md');
+  const seed = read(path.join(REPO, 'templates', 'AGENTS.personal.md'));
+  const routing = renderRouting(agents);
   const acts = [];
   const skipped = [];
   const cur = read(shared);
-  if (cur === null) acts.push([`create ${shared}`, () => writeFile(shared, want, stamp)]);
-  else if (lf(cur) !== lf(want)) skipped.push(`${shared} (yours, kept)`);
-  const text = cur === null ? want : cur;
+  let personal = cur;
+  let keptLines = [];
+  if (cur === null) { personal = seed; acts.push([`create ${shared}`, () => writeFile(shared, seed, stamp)]); } else {
+    const split = splitRouting(cur);
+    if (split) {
+      personal = split.kept;
+      keptLines = split.extra;
+      acts.push([`move routing sections (${split.moved.join(', ')}) out of ${shared} to ${routingFile}, keep the rest, back up as ${shared}.bak-${stamp}` +
+        (split.extra.length ? `; keep ${split.extra.length} of your own lines under "## ${KEPT}" (listed below)` : ''),
+        () => writeFile(shared, split.kept, stamp)]);
+    } else if (lf(cur) !== lf(seed)) skipped.push(`${shared} (yours, kept)`);
+  }
+  if (lf(read(routingFile) || '') !== routing) acts.push([`write ${routingFile}`, () => writeFile(routingFile, routing, stamp)]);
   const on = (a) => !agents || agents.includes(a);
   if (on('claude')) {
     const f = path.join(home, '.claude', 'CLAUDE.md');
     const t = read(f);
-    // A CLAUDE.md that is the shared file (link) already is the rules; appending would self-import.
-    if (real(f) !== null && real(f) === real(shared)) { /* ok */ } else if (t === null || !new RegExp(`^${POINTER.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}\\s*$`, 'm').test(t)) {
-      const next = t === null ? `${POINTER}\n` : `${t.replace(/\n?$/, '\n')}\n${POINTER}\n`;
-      acts.push([`add ${POINTER} to ${f}`, () => writeFile(f, next, stamp)]);
+    const has = (p) => t !== null && new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}\\s*$`, 'm').test(t);
+    // A CLAUDE.md that is the shared file (link) must not be edited: that would write into the owner's file.
+    if (real(f) !== null && real(f) === real(shared)) {
+      if (!has(POINTER_ROUTING)) skipped.push(`${f} (links to ${shared}; add ${POINTER_ROUTING} yourself)`);
+    } else {
+      const add = [POINTER, POINTER_ROUTING].filter((p) => !has(p));
+      if (add.length) {
+        const next = t === null ? `${add.join('\n')}\n` : `${t.replace(/\n?$/, '\n')}\n${add.join('\n')}\n`;
+        acts.push([`add ${add.join(' and ')} to ${f}`, () => writeFile(f, next, stamp)]);
+      }
     }
   }
+  const text = merged(personal, routing);
   const copies = [];
   if (on('codex')) copies.push(path.join(home, '.codex', 'AGENTS.md'));
   if (on('gemini') || on('agy')) copies.push(path.join(home, '.gemini', 'AGENTS.md'));
@@ -101,9 +166,14 @@ function rules({ apply, home, agents, log, stamp }) {
   const nextState = { ...state };
   for (const f of copies) {
     const t = read(f);
-    if (t !== null && real(f) === real(shared)) continue;
+    // A 1.0.x link to the shared file is ours: replace the link itself (never its target) with the merged copy.
+    if (t !== null && real(f) === real(shared) && fs.lstatSync(f).isSymbolicLink()) {
+      nextState[f] = sha(text);
+      acts.push([`replace link ${f} -> ${shared} with merged rules`, () => { fs.unlinkSync(f); writeFile(f, text, stamp); }]);
+      continue;
+    }
     if (t !== null && lf(t) === lf(text)) { if (state[f] !== sha(t)) nextState[f] = sha(t); continue; }
-    if (t !== null && state[f] !== sha(t)) { skipped.push(`${f} (differs from ${shared}, kept)`); continue; }
+    if (t !== null && state[f] !== sha(t)) { skipped.push(`${f} (edited by you, kept; instinct would write ${shared} + ${routingFile})`); continue; }
     nextState[f] = sha(text);
     acts.push([`${t === null ? 'copy' : 'refresh'} rules to ${f}`, () => writeFile(f, text, stamp)]);
   }
@@ -126,6 +196,11 @@ function rules({ apply, home, agents, log, stamp }) {
   }
   log(`\n[rules] ${acts.length ? (apply ? '' : 'would ') + acts.map((a) => a[0]).join('; ') : 'no change'}` +
     (skipped.length ? `; SKIPPED (not touched): ${skipped.join(', ')}` : ''));
+  // One log call per kept line, so a viewer that shows only short or single lines still lists them.
+  if (keptLines.length) {
+    log(`\n[rules] ${apply ? 'kept' : 'would keep'} these lines of yours under "## ${KEPT}" in ${shared}:`);
+    for (const l of keptLines) log(`    ${l}`);
+  }
   if (apply) for (const [, fn] of acts) fn();
   return { agent: 'rules', changed: acts.length > 0, skipped };
 }
@@ -192,4 +267,4 @@ function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir()
   return results;
 }
 
-module.exports = { setup, detectAgents };
+module.exports = { setup, detectAgents, renderRouting, splitRouting, merged };

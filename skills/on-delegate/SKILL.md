@@ -1,6 +1,6 @@
 ---
 name: instinct-on-delegate
-description: Split work and hand parts to other agents (Codex, Gemini, Antigravity, Claude) or to helpers, then score the results. Use on your own when work splits into 2+ independent parts, when a 🔴 change needs a cross-vendor review, or when the user asks for a second opinion or to "ให้ agent อื่นช่วย".
+description: Split work and hand parts to other agents that are on (per the "instinct: agents" block) or to helpers, then score the results. Use on your own when work splits into 2+ independent parts, when a 🔴 change needs a cross-vendor review, or when the user asks for a second opinion or to "ให้ agent อื่นช่วย".
 ---
 
 # on-delegate
@@ -15,17 +15,17 @@ Task types (keep to these so scores add up): `review`, `build`, `test`, `bug`, `
 1. **Split.** Break the work into parts with no shared files. Each part gets an exact scope:
    files, what to do, read-only or not, and how to report.
 
-2. **Pick agents.** For each part run `instinct route --type <type>`.
+2. **Pick agents.** Only agents listed `on` in the session's "instinct: agents" block (or `instinct agents`). For each part run `instinct route --type <type>`; it already leaves out the others.
    - `by scores` or `rotate` → use that agent (`claude` = a helper of the Claude kind from the table).
-   - `static` → use the routing table in `~/.agents/AGENTS.md`.
+   - `static` → use the routing table in `~/.agents/instinct.md`.
    Every build is reviewed by the `reviewer` that `route` prints, a different vendor from the
-   builder. A 🔴 change always also gets a reviewer from another vendor.
+   builder. A 🔴 change always also gets a reviewer from another vendor. If `route` says no other vendor is on, review with a Claude subagent (`surgeon-reviewer`, or roles/surgeon-reviewer.md via `instinct dispatch`) and tell the user in one line.
 
 3. **Show the plan.** Always show it: part → agent → why. Start at once if every part is
    within the criteria (independent parts, 🔴 cross-vendor review, a second opinion the user
    asked for). Otherwise wait for the user.
 
-4. **Dispatch.** Inside Herdr (`$HC_TERMINAL_ID` set) use `hc run --bg` as in `~/.agents/AGENTS.md`,
+4. **Dispatch.** Inside Herdr (`$HC_TERMINAL_ID` set) use `hc run --bg` as in `~/.agents/instinct.md`,
    ending the task with "report with `hc send <your id> ...`" where `<your id>` is your own
    `$HC_TERMINAL_ID` written out literally (e.g. `t2h`). Inside the helper that variable is the
    helper's own terminal, so passing it unexpanded makes the helper report to itself.
@@ -36,8 +36,8 @@ Task types (keep to these so scores add up): `review`, `build`, `test`, `bug`, `
    terminal and re-dispatch the same task without asking. "Progress" means new terminal
    output or changed files; a quiet test run is not a stall if its process is still alive.
    - **Next agent.** Build: re-run `instinct route --type build --skip <all failed>` and use
-     what it returns. Other types (`--skip` only works for build): the next untried one in
-     gemini → codex → agy → claude (owner order, 2026-11-24). gemini and agy are one company (Google): never builder and reviewer of the same work.
+     what it returns. Other types (`--skip` only works for build): the next untried agent that is
+     `on` in the "instinct: agents" block. gemini and agy are one company (Google): never builder and reviewer of the same work.
    - **Clean slate.** Before re-dispatching, revert the failed agent's changes to that task's
      files (back to the task's starting point) and note it in the state file.
    - **Remember.** Record the failed vendor and why in the autopilot state file if one exists,

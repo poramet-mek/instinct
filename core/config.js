@@ -90,6 +90,34 @@ function unavailableAgents(env = process.env, cwd = process.cwd()) {
 
 const AGENTS = ['claude', 'codex', 'gemini', 'agy'];
 
+// Each agent as on / off (not chosen on this machine) / unavailable (<reason>), same sources as unavailableAgents.
+function agentStatus(env = process.env, cwd = process.cwd()) {
+  const chosen = chosenAgents(env.INSTINCT_HOME || os.homedir());
+  const fromEnv = String(env.INSTINCT_UNAVAILABLE || '').split(',').map((x) => x.trim().toLowerCase());
+  let repo = [];
+  try {
+    const list = (loadConfig(cwd) || {}).unavailable;
+    repo = (Array.isArray(list) ? list : typeof list === 'string' ? list.split(',') : []).map((x) => String(x).trim().toLowerCase());
+  } catch { /* unreadable config: ignored */ }
+  return AGENTS.map((agent) => {
+    if (chosen && !chosen.includes(agent)) return { agent, status: 'off', reason: 'not chosen' };
+    if (fromEnv.includes(agent)) return { agent, status: 'unavailable', reason: 'INSTINCT_UNAVAILABLE' };
+    if (repo.includes(agent)) return { agent, status: 'unavailable', reason: 'repo .instinct/config.yml' };
+    return { agent, status: 'on', reason: '' };
+  });
+}
+
+// Session-start block: one line, e.g. `on: claude, codex · off: gemini (not chosen)`.
+function agentsBlock(env = process.env, cwd = process.cwd()) {
+  const rows = agentStatus(env, cwd);
+  const on = rows.filter((r) => r.status === 'on').map((r) => r.agent);
+  const off = rows.filter((r) => r.status === 'off').map((r) => r.agent);
+  const un = rows.filter((r) => r.status === 'unavailable').map((r) => `${r.agent} (${r.reason})`);
+  return '## instinct: agents\n\n' + `on: ${on.join(', ') || 'none'}` + (off.length ? ` · off: ${off.join(', ')}` : '') +
+    (un.length ? ` · unavailable: ${un.join(', ')}` : '') +
+    '\nDelegate, build and review only with agents that are on; `instinct route` picks among them. With no other vendor on, review with a Claude subagent (surgeon-reviewer) and tell the user.';
+}
+
 // The agent running this session (the lead), from its own environment.
 // An explicit INSTINCT_LEAD wins; detection is a heuristic, and an unavailable detected lead is 'none'.
 function detectLead(env = process.env, unavailable = []) {
@@ -102,4 +130,4 @@ function detectLead(env = process.env, unavailable = []) {
   return unavailable.includes(found) ? 'none' : found;
 }
 
-module.exports = { machineConfigPath, chosenAgents, configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead };
+module.exports = { machineConfigPath, chosenAgents, configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead, agentStatus, agentsBlock, AGENTS };

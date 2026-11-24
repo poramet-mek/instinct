@@ -24,13 +24,19 @@ function readJson(file) {
   try { return { data: JSON.parse(raw) }; } catch { return { invalid: true }; }
 }
 
-// Linked to, or a copy of, the shared rules file.
+// New layout: ~/.agents/AGENTS.md (owner) + ~/.agents/instinct.md (routing). Old layout (1.0.x):
+// no instinct.md yet, AGENTS.md alone holds the rules; it passes until setup runs.
+const oldLayout = (home) => read(path.join(home, '.agents', 'instinct.md')) === null;
+
+// A link to, or a copy of, the old shared file; or the owner's file and instinct.md merged.
 function sharedRules(home, file) {
   const shared = path.join(home, '.agents', 'AGENTS.md');
   const want = read(shared);
+  const routing = read(path.join(home, '.agents', 'instinct.md'));
   const got = read(file);
   if (want === null || got === null) return false;
-  return real(file) === real(shared) || lf(got) === lf(want);
+  if (oldLayout(home) && (real(file) === real(shared) || lf(got) === lf(want))) return true;
+  return routing !== null && lf(got) === require('../install/setup').merged(want, routing);
 }
 
 function rulesCheck(agent, home) {
@@ -39,9 +45,13 @@ function rulesCheck(agent, home) {
   if (agent === 'claude') {
     const f = d('.claude', 'CLAUDE.md');
     const shared = d('.agents', 'AGENTS.md');
-    if (read(shared) === null) return bad(fix);
+    const want = read(shared);
     const t = read(f);
-    return t !== null && (/^@~\/\.agents\/AGENTS\.md\s*$/m.test(t) || real(f) === real(shared)) ? OK : bad(fix);
+    if (want === null || t === null) return bad(fix);
+    const imports = (name) => t.split(/\r?\n/).some((l) => l.trim() === `@~/.agents/${name}`);
+    const personal = imports('AGENTS.md') || real(f) === real(shared);
+    if (oldLayout(home)) return personal ? OK : bad(fix);
+    return personal && imports('instinct.md') ? OK : bad(fix);
   }
   if (agent === 'codex') return sharedRules(home, d('.codex', 'AGENTS.md')) ? OK : bad(fix);
   if (agent === 'agy') return sharedRules(home, d('.gemini', 'AGENTS.md')) ? OK : bad(fix);
@@ -97,10 +107,10 @@ function geminiSeesRepo(home, repo) {
 const FIX = {
   geminiDir: 'add the instinct repo to context.includeDirectories in ~/.gemini/settings.json',
   rules: {
-    claude: 'add the line @~/.agents/AGENTS.md to ~/.claude/CLAUDE.md (and create ~/.agents/AGENTS.md)',
-    codex: 'link or copy ~/.agents/AGENTS.md to ~/.codex/AGENTS.md',
-    gemini: 'link ~/.agents/AGENTS.md to ~/.gemini/AGENTS.md; add "AGENTS.md" to context.fileName in ~/.gemini/settings.json',
-    agy: 'link or copy ~/.agents/AGENTS.md to ~/.gemini/AGENTS.md',
+    claude: 'instinct setup --apply (needs @~/.agents/AGENTS.md and @~/.agents/instinct.md in ~/.claude/CLAUDE.md)',
+    codex: 'instinct setup --apply (~/.codex/AGENTS.md = ~/.agents/AGENTS.md + ~/.agents/instinct.md)',
+    gemini: 'instinct setup --apply (~/.gemini/AGENTS.md = ~/.agents/AGENTS.md + ~/.agents/instinct.md; "AGENTS.md" in context.fileName of ~/.gemini/settings.json)',
+    agy: 'instinct setup --apply (~/.gemini/AGENTS.md = ~/.agents/AGENTS.md + ~/.agents/instinct.md)',
   },
   hooks: {
     claude: 'instinct install --apply --agents claude', codex: 'instinct install --apply --agents codex',

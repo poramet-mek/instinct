@@ -65,7 +65,9 @@ function handle(ev) {
     let work = null;
     try { work = require('./scratch').summary(ev.cwd && findProjectRoot(ev.cwd)); } catch { /* fail open */ }
     if (work) text = (text ? text + '\n\n' : '') + work; // capped inside scratch.js
-    text = (text ? text + '\n\n' : '') + WORK_RULE + '\n\n' + STANDARDS + '\n\n' + DOC_RULE; // always sent, never truncated
+    let agents = '';
+    try { agents = require('./config').agentsBlock(process.env, ev.cwd || process.cwd()) + '\n\n'; } catch { /* fail open */ }
+    text = (text ? text + '\n\n' : '') + agents + WORK_RULE + '\n\n' + STANDARDS + '\n\n' + DOC_RULE; // always sent, never truncated
     return { context: text };
   }
 
