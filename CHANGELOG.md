@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+- README documents uninstall (`instinct setup --remove`) and how it differs from `uninstall`.
+
 ## 1.1.0
 
 ### Added
