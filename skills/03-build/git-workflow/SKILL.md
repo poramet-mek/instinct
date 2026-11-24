@@ -22,3 +22,4 @@ Follow strict GitFlow and clean commit hygiene.
 - **No AI attribution:** Never add `Co-Authored-By` or AI-generated trailers to commits or PRs.
 - Keep each PR focused on one logical change; include what changed and how it was verified.
 - **Docs as Living State (Exit Gate):** Before committing or opening a PR that changes architecture, boundaries, APIs, or behavior, ensure affected docs (`ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/concepts/`, ADRs) are updated in the same change.
+- **Multi-account check:** Before pushing or running `gh pr create`, verify the active account (`git config --show-origin --get-regexp credential`, `gh auth status`); if `gh` is logged into a different account, push via the repo's configured credential helper and share the GitHub compare/PR URL instead.
