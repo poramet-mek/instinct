@@ -31,7 +31,7 @@ test('tools already present are skipped', { skip: !win }, () => {
 });
 
 test('one failure does not stop the rest and shows in the summary', { skip: !win }, () => {
-  const { out } = run('-AssumeMissing', 'codex,gemini', '-SimulateFail', 'codex');
+  const { out } = run('-Agents', 'claude,codex,gemini,agy', '-AssumeMissing', 'codex,gemini', '-SimulateFail', 'codex');
   assert.match(out, /npm i -g @google\/gemini-cli/);
   assert.match(out, /failed\s+codex/);
   assert.match(out, /instinct\.js"? setup --apply/);
@@ -57,7 +57,7 @@ test('test-only switches are refused outside a dry run', { skip: !win }, () => {
 });
 
 test('answering no installs nothing', { skip: !win }, () => {
-  const { code, out } = runRaw(['-Dir', path.join(require('os').tmpdir(), 'instinct no such')], 'n\n');
+  const { code, out } = runRaw(['-Dir', path.join(require('os').tmpdir(), 'instinct no such'), '-Agents', 'claude'], 'n\n');
   assert.equal(code, 0);
   assert.match(out, /Nothing installed/);
   assert.doesNotMatch(out, /run\s+/);
@@ -66,4 +66,54 @@ test('answering no installs nothing', { skip: !win }, () => {
 test('a -Dir with spaces stays one quoted path', { skip: !win }, () => {
   const { out } = run('-Dir', 'C:\\x\\John Doe\\instinct');
   assert.match(out, /git clone \S+ "C:\\x\\John Doe\\instinct"/);
+});
+
+test('-Agents picks what is installed and passed on; Herdr, Node and Git always', { skip: !win }, () => {
+  const { out } = run('-Agents', 'claude,agy', '-AssumeMissing', 'node,git,herdr,claude,codex,gemini,agy');
+  assert.match(out, /plan\s+claude/);
+  assert.match(out, /plan\s+agy/);
+  assert.match(out, /plan\s+herdr/);
+  assert.match(out, /plan\s+node/);
+  assert.doesNotMatch(out, /@openai\/codex|@google\/gemini-cli/);
+  assert.match(out, /setup --apply --agents claude,agy/);
+  assert.match(out, /claude\s+\|\s+agy/);
+  assert.doesNotMatch(out, /codex login|gemini/);
+});
+
+test('without -Agents the prompt leaves gemini out by default and says why', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome() }, [], '\n');
+  assert.match(out, /Enter = claude,codex,agy/);
+  assert.match(out, /Gemini CLI.*API key/i);
+  assert.match(out, /setup --apply --agents claude,codex,agy/);
+});
+
+test('an unknown agent name is refused', { skip: !win }, () => {
+  const { code, out } = run('-Agents', 'claude,cladue');
+  assert.equal(code, 1);
+  assert.match(out, /unknown agent "cladue"/);
+});
+
+function withHome(agentsLine) {
+  const h = require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'instinct-ps-'));
+  if (agentsLine) {
+    require('fs').mkdirSync(path.join(h, '.instinct'));
+    require('fs').writeFileSync(path.join(h, '.instinct', 'config.yml'), agentsLine + '\n');
+  }
+  return h;
+}
+function runEnv(env, args, input) {
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PS1, '-DryRun', ...args],
+    { encoding: 'utf8', input, env: { ...process.env, ...env } });
+  return (r.stdout || '') + (r.stderr || '');
+}
+
+test('a re-run defaults to the saved choice, not the built-in one', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome('agents: [claude, gemini]') }, ['-Yes'], '\n');
+  assert.match(out, /setup --apply --agents claude,gemini/);
+});
+
+test('-Yes never asks which agents', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome() }, ['-Yes'], 'gemini\n');
+  assert.doesNotMatch(out, /Which will you use/);
+  assert.match(out, /--agents claude,codex,agy/);
 });

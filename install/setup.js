@@ -50,7 +50,7 @@ function linkSkills(agent, { apply, home, log }) {
     else if (staleLink(link, n)) todo.push([link, src, true]);
     else foreign.push(`_instinct__${n}`);
   }
-  log(`\n[skills ${agent}] ${dest} — ${apply ? '' : 'would '}link ${todo.length}` +
+  log(`\n[skills ${agent}] ${dest}: ${apply ? '' : 'would '}link ${todo.length}` +
     (foreign.length ? `; SKIPPED (not ours, not touched): ${foreign.join(', ')}` : ''));
   if (apply) {
     fs.mkdirSync(dest, { recursive: true });
@@ -141,7 +141,7 @@ function unlinkSkills(agent, { apply, home, log }) {
     return fs.lstatSync(l).isSymbolicLink() && (real(l) === real(path.join(SKILLS, skill)) || staleLink(l, skill));
   });
   if (!ours.length) return;
-  log(`\n[skills ${agent}] off — ${apply ? '' : 'would '}unlink ${ours.length}`);
+  log(`\n[skills ${agent}] off: ${apply ? '' : 'would '}unlink ${ours.length}`);
   if (apply) for (const n of ours) { const l = path.join(dest, n); try { fs.unlinkSync(l); } catch { fs.rmdirSync(l); } }
 }
 

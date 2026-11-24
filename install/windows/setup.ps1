@@ -5,6 +5,7 @@ param(
   [string]$Repo = 'https://github.com/poramet-mek/instinct.git',
   [switch]$DryRun,
   [switch]$Yes,
+  [string[]]$Agents = @(),          # e.g. claude,codex,agy; asked when empty
   [string[]]$AssumeMissing = @(),   # tests: treat these tools as missing (dry run only)
   [string[]]$SimulateFail = @()     # tests: report these steps as failed (dry run only)
 )
@@ -32,6 +33,35 @@ $instinctSetup = @{ failed = $false }
     @{ name = 'gemini'; has = { Test-Cmd gemini }; cmd = 'npm i -g @google/gemini-cli' }
     @{ name = 'agy';    has = { Test-Cmd agy };    cmd = (Get-WingetCmd 'Google.AntigravityCLI') }
   )
+
+  # Which agents: -Agents, else ask (skipped with -Yes). The default is the choice saved by an
+  # earlier run (~/.instinct/config.yml), else all but Gemini CLI (see the note below).
+  $allAgents = @('claude', 'codex', 'gemini', 'agy')
+  $defaultAgents = @('claude', 'codex', 'agy')
+  $instinctHome = if ($env:INSTINCT_HOME) { $env:INSTINCT_HOME } else { $HOME }
+  $savedFile = Join-Path $instinctHome '.instinct\config.yml'
+  if (Test-Path $savedFile) {
+    $m = Select-String -Path $savedFile -Pattern '^agents:\s*\[(.*)\]' | Select-Object -First 1
+    if ($m) {
+      $saved = @($m.Matches[0].Groups[1].Value -split ',' | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $allAgents -contains $_ })
+      if ($saved.Count) { $defaultAgents = $saved }
+    }
+  }
+  $Agents = @($Agents | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ })
+  if (-not $Agents.Count -and $Yes) { $Agents = $defaultAgents }
+  if (-not $Agents.Count) {
+    Write-Host 'Agents: claude, codex, gemini, agy.'
+    Write-Host '  Note: since 2026-11 Gemini CLI no longer takes a personal Google sign-in; it needs an API key.'
+    Write-Host "Which will you use? (comma list, Enter = $($defaultAgents -join ','))"
+    $line = Read-Host
+    $Agents = @(("$line" -split ',') | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ })
+    if (-not $Agents.Count) { $Agents = $defaultAgents }
+  }
+  $bad = @($Agents | Where-Object { $allAgents -notcontains $_ })
+  if ($bad.Count) { Write-Host "unknown agent `"$($bad[0])`" (valid: $($allAgents -join ', '))"; $instinctSetup.failed = $true; return }
+  $Agents = @($allAgents | Where-Object { $Agents -contains $_ })
+  $tools = @($tools | Where-Object { $allAgents -notcontains $_.name -or $Agents -contains $_.name })
+  $agentList = $Agents -join ','
 
   $results = New-Object System.Collections.Generic.List[object]
   function Add-Result($state, $name, $note) { $results.Add([pscustomobject]@{ state = $state; name = $name; note = $note }) }
@@ -72,7 +102,7 @@ $instinctSetup = @{ failed = $false }
   $showRepo = if ($pull) { "git -C `"$Dir`" pull --ff-only" } else { "git clone $Repo `"$Dir`"" }
   $bin = Join-Path $Dir 'bin\instinct.js'
   Write-Host "  plan  instinct : $showRepo"
-  Write-Host "  plan  instinct : node `"$bin`" setup --apply, then doctor"
+  Write-Host "  plan  instinct : node `"$bin`" setup --apply --agents $agentList, then doctor"
 
   if (-not $Yes -and -not $DryRun) {
     $answer = Read-Host 'Install the above? [y/N]'
@@ -83,7 +113,7 @@ $instinctSetup = @{ failed = $false }
   foreach ($t in $todo) { $c = $t.cmd; Invoke-Step $t.name $c { & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $c }.GetNewClosure() $t.has }
   if ($pull) { Invoke-Step 'instinct-repo' $showRepo { & git -C $Dir pull --ff-only } }
   else { Invoke-Step 'instinct-repo' $showRepo { & git clone $Repo $Dir } }
-  Invoke-Step 'instinct-setup' "node `"$bin`" setup --apply" { & node $bin setup --apply }
+  Invoke-Step 'instinct-setup' "node `"$bin`" setup --apply --agents $agentList" { & node $bin setup --apply --agents $agentList }
   Invoke-Step 'doctor' "node `"$bin`" doctor" {
     $rows = (& node $bin doctor --json | Out-String) | ConvertFrom-Json
     $rows | Format-Table agent, check, status, fix -AutoSize | Out-Host
@@ -95,7 +125,8 @@ $instinctSetup = @{ failed = $false }
   foreach ($r in $results) { Write-Host ('  {0,-8} {1} {2}' -f $r.state, $r.name, $r.note) }
   Write-Host ''
   Write-Host 'Log in to each agent once (opens a browser):'
-  Write-Host '  claude  |  codex login  |  gemini  |  agy  |  open Herdr from the Start menu'
+  $login = @{ claude = 'claude'; codex = 'codex login'; gemini = 'gemini (API key)'; agy = 'agy' }
+  Write-Host ('  ' + ((@($Agents | ForEach-Object { $login[$_] }) + 'open Herdr from the Start menu') -join '  |  '))
   $instinctSetup.failed = [bool]($results | Where-Object state -eq 'failed')
 }
 # exit only when run as a file (setup.cmd); under `irm | iex` it would close the user's window.
