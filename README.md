@@ -30,6 +30,20 @@ node bin/instinct.js doctor           # every row should be ok
 
 Re-run after `git pull` to update; it never replaces files that are not instinct's.
 
+### Uninstall
+
+```sh
+node bin/instinct.js setup --remove            # dry run: lists what would be removed
+node bin/instinct.js setup --remove --apply    # undo setup on this machine
+```
+
+Removes only instinct's items: hooks, `_instinct__*` skill links (and agy/Gemini copies),
+`~/.agents/instinct.md`, `~/.instinct/config.yml`, the import lines in `~/.claude/CLAUDE.md`
+and instinct's Gemini context entries. Files you edited are kept and listed; each deleted file
+is backed up as `*.bak-<time>` (links are only unlinked).
+
+`uninstall --apply` (below) is narrower: it removes only the merged hooks and agy/Gemini copies.
+
 ## Usage (MVP 1)
 
 ```sh
