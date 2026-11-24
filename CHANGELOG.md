@@ -9,8 +9,12 @@
   - `instinct-concept`: Capture future concepts, RFCs, and POC guardrails (`docs/concepts/`).
   - `instinct-manual`: Screenshot-backed `user-manual-for-<slug>.md` with iterative discovery, gap reporting, troubleshooting, and target-persona review.
 - 12 orchestrator playbooks under `skills/00-general/instinct/playbooks/`.
-- Zero-dependency Node.js (`>=20`) CLI installer (`bin/instinct.js`) supporting `list`, `install`, and `uninstall` across `claude`, `codex`, `agy`, and `gemini`.
+- Zero-dependency Node.js (`>=20`) CLI installer (`bin/instinct.js`) supporting `list`, `install`, and `uninstall` across `claude`, `codex`, `agy`, and `gemini`, plus one-command `npx github:poramet-mek/instinct install --apply`.
+- Multi-account Git and GitHub CLI setup guide (`docs/multi-account-git.md`).
 - Change Committee release packet (`docs/releases/v2.0.0.md`).
+
+### Fixed
+- Installer now forces `copy` mode with `.instinct-managed` marker when run from ephemeral `_npx` or `node_modules` paths, preventing dangling symlinks.
 
 ### Changed
 - Rewrote `instinct` to v2.0.0 with concise skills (`<= 80` lines each) and `disable-model-invocation: true` for user-only skills.
