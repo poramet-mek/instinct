@@ -21,3 +21,4 @@ Follow strict GitFlow and clean commit hygiene.
 - **Commit subject:** Imperative, stating what was added, fixed, or removed (body optional).
 - **No AI attribution:** Never add `Co-Authored-By` or AI-generated trailers to commits or PRs.
 - Keep each PR focused on one logical change; include what changed and how it was verified.
+- **Docs as Living State (Exit Gate):** Before committing or opening a PR that changes architecture, boundaries, APIs, or behavior, ensure affected docs (`ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/concepts/`, ADRs) are updated in the same change.

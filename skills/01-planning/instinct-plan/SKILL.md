@@ -10,6 +10,8 @@ Turn a settled requirement or BRD into a crisp, actionable implementation plan.
 
 ## Output Sections
 
+Save the settled plan as a **Spec** under `docs/specs/<slug>.md` (unless the repo uses another convention).
+
 1. **Requirement Record:** Problem statement, target users, and numbered acceptance criteria (verifiable, no vague adjectives).
 2. **Scope & Non-Goals:** Explicitly list what is *in* and what is *out* to prevent scope creep.
 3. **Constraints:** Security, privacy/regulatory, hardware/offline, and performance/SLA requirements.
@@ -20,5 +22,6 @@ Turn a settled requirement or BRD into a crisp, actionable implementation plan.
 
 ## Rules
 
+- Check existing `ARCHITECTURE.md`, `docs/domain-model.md`, `docs/adr/`, and `docs/concepts/` if present so the spec aligns with prior decisions, domain invariants, and POC guardrails.
 - Do not invent missing requirements; ask or flag them as open questions.
 - Keep estimates honest: include testing, review, and QA/UAT doc time, not just coding time.

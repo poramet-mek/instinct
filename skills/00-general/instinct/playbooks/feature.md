@@ -8,6 +8,7 @@ Use for medium-to-large features on `develop`.
 4. `instinct-figma` — *(If UI)* Implement from Figma one frame/node at a time.
 5. `tdd` — Implement in vertical slices (red -> minimal green -> refactor).
 6. `verify` — Run unit/integration tests and failure-path checks with real output.
-7. `unslop` — Clean diff, remove AI tells, enforce concise comment rules.
-8. `instinct-review` — Ruthless diff review (`SHIP` / `DO NOT SHIP`).
-9. `git-workflow` — Clean commit and PR into `develop`.
+7. `instinct-standards` — *(If architecture, boundaries, APIs, or concepts changed)* Sync `ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/concepts/` status, and record an ADR if a new architectural decision was made.
+8. `unslop` — Clean diff, remove AI tells, enforce concise comment rules.
+9. `instinct-review` — Ruthless diff review (`SHIP` / `DO NOT SHIP`).
+10. `git-workflow` — Clean commit and PR into `develop`.

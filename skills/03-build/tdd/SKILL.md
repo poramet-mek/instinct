@@ -22,3 +22,4 @@ TDD is the **red -> minimal green -> refactor** loop, worked one vertical slice 
 3. **Minimal green:** Write only enough code to make that test pass. Do not anticipate future tests or add speculative features.
 4. **Refactor** only when green, keeping behavior covered.
 5. Repeat slice by slice until all acceptance criteria are covered.
+6. **Docs as Living State (Exit Gate):** If public seams, boundaries, domain invariants, or documented behavior changed, sync affected docs (`ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/domain-model.md`, `docs/specs/`, `docs/concepts/`, ADRs) before finishing.

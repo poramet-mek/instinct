@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Instinct Orchestrator
 
-Match the request to **one** playbook below, read **only** that playbook file (`playbooks/<name>.md`), present the checklist, and execute step-by-step.
+Match the request to **one** playbook below, read **only** that playbook file (`playbooks/<name>.md`, relative to this skill's directory), present the checklist, and execute step-by-step.
 
 ## Playbook Routing
 
@@ -29,3 +29,6 @@ Match the request to **one** playbook below, read **only** that playbook file (`
 
 - Read only the single matched playbook—never load all playbooks.
 - Ask once if the goal is ambiguous between two playbooks (e.g., `quick` vs `feature`).
+- Present the matched playbook's checklist to the user before starting execution.
+- Do not report done until every step in the matched playbook (including `unslop` and `instinct-review`) has been executed.
+- **Docs as Living State (Exit Gate):** Before finishing any playbook that changes architecture, boundaries, APIs, domain invariants, or behavior, sync affected project docs (`ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/domain-model.md`, `docs/specs/`, `docs/concepts/` status, ADRs, or `docs/` reports) so docs match the code.

@@ -9,14 +9,17 @@ Portions adapted from or inspired by:
 - [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, © 2026 Matt Pocock)
 - [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (by Lauren Tan / `@poteto`)
 
-## 18 Skills Across 6 Core Phases (1 Orchestrator + 17 Atomic Skills)
+## 22 Skills Across 6 Core Phases (1 Orchestrator + 21 Atomic Skills)
 
 | Phase | Skill | Mode | Purpose |
 |---|---|---|---|
 | `00-general` | `instinct` | User-only | Orchestrator: matches goal to 1 of 12 playbooks |
 | `00-general` | `instinct-ask` | User-only | Read-only repo inventory or single-feature flow trace |
+| `00-general` | `instinct-handoff` | User-only | Git-grounded session handoff (`HANDOFF.md`) & drift-checked resume |
+| `00-general` | `retro` | User-only | Post-session retrospective to improve living docs, steering files, and checks |
 | `01-planning` | `instinct-business` | User-only | Product strategy, commercial packaging, market benchmark, BRD |
 | `01-planning` | `grilling` | On-demand | Design-tree interview to clarify requirements & decisions |
+| `01-planning` | `instinct-concept` | User-only | Capture future concepts, RFCs, POC guardrails (`docs/concepts/`) |
 | `01-planning` | `instinct-plan` | User-only | Requirement record, scope/non-goals, task breakdown, estimates |
 | `02-design` | `instinct-standards` | User-only | `ARCHITECTURE.md`, `CODING_STANDARDS.md`, folder layout, ADRs |
 | `02-design` | `architect` | On-demand | Topology, data flow, module boundaries, security controls |
@@ -29,6 +32,7 @@ Portions adapted from or inspired by:
 | `04-qa` | `instinct-qa-doc` | User-only | E2E drafts (incl. resilience), capture evidence, UAT docs |
 | `04-qa` | `instinct-perf` | User-only | SLA targets, baseline vs after benchmarks, burst tests |
 | `04-qa` | `instinct-pentest` | User-only | Authorized local/staging security & race-condition report |
+| `05-deploy` | `instinct-manual` | User-only | Screenshot-backed `user-manual-for-<slug>.md` with discovery, troubleshooting & target review |
 | `05-deploy` | `release` | User-only | GitFlow release, SemVer, `CHANGELOG.md`, Change Committee doc |
 | `06-ops` | `diagnosing-bugs` | On-demand | Tight red feedback loop → root cause → regression test |
 
