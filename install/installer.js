@@ -122,14 +122,24 @@ function isManagedDest(destDir, skillsRoot) {
   return stat.isDirectory() && fs.existsSync(path.join(destDir, MANAGED_MARKER));
 }
 
+function isEphemeralSource(skillsRoot) {
+  const normalized = normalizeForCompare(path.resolve(skillsRoot));
+  return (
+    normalized.includes(`${path.sep}_npx${path.sep}`) ||
+    normalized.includes(`${path.sep}node_modules${path.sep}`)
+  );
+}
+
 function installSkills({ skillsRoot, homeDir, targets = 'all', apply = false }) {
   const skills = discoverSkills(skillsRoot);
   const allTargets = getTargets(homeDir);
   const selected = resolveTargetNames(targets, allTargets);
+  const forceCopy = isEphemeralSource(skillsRoot);
   const actions = [];
 
   for (const agent of selected) {
     const { dir: targetDir, mode } = allTargets[agent];
+    const effectiveMode = forceCopy ? 'copy' : mode;
     if (apply) fs.mkdirSync(targetDir, { recursive: true });
 
     for (const skill of skills) {
@@ -143,10 +153,10 @@ function installSkills({ skillsRoot, homeDir, targets = 'all', apply = false }) 
         continue;
       }
 
-      let actualMode = mode;
+      let actualMode = effectiveMode;
       if (apply) {
         if (exists) fs.rmSync(dest, { recursive: true, force: true });
-        if (mode === 'copy') copySkillDir(skill.dir, dest);
+        if (effectiveMode === 'copy') copySkillDir(skill.dir, dest);
         else actualMode = createLinkOrCopy(skill.dir, dest);
       }
       actions.push({ agent, skill: skill.name, dest, mode: actualMode, status: apply ? 'installed' : 'planned' });

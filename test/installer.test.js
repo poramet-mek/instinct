@@ -97,6 +97,33 @@ describe('instinct v2 skills & installer', () => {
     }
   });
 
+  it('copies with managed marker (no symlinks) when installing from node_modules/_npx cache', () => {
+    const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'instinct-npx-'));
+    try {
+      const tmpHome = path.join(tmpBase, 'home');
+      const ephemeralSkillsRoot = path.join(tmpBase, 'node_modules', 'instinct', 'skills');
+      const demoSkillDir = path.join(ephemeralSkillsRoot, '00-general', 'tdd');
+      fs.mkdirSync(demoSkillDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(demoSkillDir, 'SKILL.md'),
+        '---\nname: tdd\ndescription: demo\n---\n# tdd\n'
+      );
+
+      const installed = installSkills({ skillsRoot: ephemeralSkillsRoot, homeDir: tmpHome, apply: true });
+      assert.ok(installed.actions.every((a) => a.mode === 'copy'));
+
+      const claudeTdd = path.join(getTargets(tmpHome).claude.dir, 'tdd');
+      assert.equal(fs.lstatSync(claudeTdd).isSymbolicLink(), false);
+      assert.ok(fs.existsSync(path.join(claudeTdd, MANAGED_MARKER)));
+
+      // Uninstalling from a different skillsRoot (simulating a new _npx hash) still removes it
+      uninstallSkills({ skillsRoot: SKILLS_ROOT, homeDir: tmpHome, apply: true });
+      assert.equal(fs.existsSync(claudeTdd), false);
+    } finally {
+      fs.rmSync(tmpBase, { recursive: true, force: true });
+    }
+  });
+
   it('rejects empty/missing --target values and unknown flags in CLI', () => {
     const cliPath = path.resolve(__dirname, '..', 'bin', 'instinct.js');
     for (const args of [['install', '--target'], ['install', '--target='], ['install', '--bogus']]) {
