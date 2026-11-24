@@ -215,9 +215,10 @@ function unlinkSkills(agent, { apply, home, log }) {
     const skill = n.slice('_instinct__'.length);
     return fs.lstatSync(l).isSymbolicLink() && (real(l) === real(path.join(SKILLS, skill)) || staleLink(l, skill));
   });
-  if (!ours.length) return;
+  if (!ours.length) return 0;
   log(`\n[skills ${agent}] off: ${apply ? '' : 'would '}unlink ${ours.length}`);
   if (apply) for (const n of ours) { const l = path.join(dest, n); try { fs.unlinkSync(l); } catch { fs.rmdirSync(l); } }
+  return ours.length;
 }
 
 // Which agents: explicit `agents` (--agents) is saved; else the saved choice; with none saved,
@@ -267,4 +268,79 @@ function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir()
   return results;
 }
 
-module.exports = { setup, detectAgents, renderRouting, splitRouting, merged };
+// Delete a file instinct wrote, keeping a *.bak-<time> copy. A link is only unlinked: its target
+// (e.g. a dotfiles repo) is neither deleted nor given a .bak beside it.
+function dropFile(f, stamp) { if (!fs.lstatSync(f).isSymbolicLink()) backup(f, stamp); fs.unlinkSync(f); }
+
+// Undo setup on this machine: only instinct's items; anything the user changed is kept and reported.
+function remove({ apply = false, home = process.env.INSTINCT_HOME || os.homedir(), log = console.log } = {}) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  let changed = 0;
+  for (const r of install.run({ mode: 'uninstall', apply, home, log: () => {} })) {
+    if (r.error) log(`\n[remove ${r.agent}] SKIPPED: ${r.error}`);
+    else if (r.changed) { changed++; log(`\n[remove ${r.agent}] ${apply ? 'removed' : 'would remove'} instinct entries`); }
+    if (r.foreign && r.foreign.length) log(`\n[remove ${r.agent}] kept (not ours): ${r.foreign.join(', ')}`);
+  }
+  for (const a of ['claude', 'codex']) changed += unlinkSkills(a, { apply, home, log }) || 0;
+  const acts = [];
+  const kept = [];
+  const shared = path.join(home, '.agents', 'AGENTS.md');
+  for (const f of [path.join(home, '.agents', 'instinct.md'), config.machineConfigPath(home)]) {
+    if (exists(f)) acts.push([`delete ${f}`, () => dropFile(f, stamp)]);
+  }
+  // CLAUDE.md: drop only our two import lines. Deleted only when it is exactly what setup creates;
+  // an owner's file left empty stays.
+  const cf = path.join(home, '.claude', 'CLAUDE.md');
+  const ct = read(cf);
+  if (ct !== null && !(real(cf) !== null && real(cf) === real(shared))) {
+    const ours = (l) => l.trim() === POINTER || l.trim() === POINTER_ROUTING;
+    const lines = lf(ct).split('\n');
+    if (lines.some(ours)) {
+      const next = lines.filter((l) => !ours(l)).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\n*$/, '\n');
+      if (lf(ct) === `${POINTER}\n${POINTER_ROUTING}\n`) acts.push([`delete ${cf} (setup created it)`, () => dropFile(cf, stamp)]);
+      else acts.push([`remove ${POINTER} and ${POINTER_ROUTING} from ${cf}`, () => writeFile(cf, next.trim() ? next : '', stamp)]);
+    }
+  }
+  // Merged copies: deleted only while their hash is still the one setup recorded.
+  const stateFile = path.join(home, '.agents', '.instinct-copies.json');
+  let state = {};
+  try { state = JSON.parse(read(stateFile) || '{}'); } catch { state = {}; }
+  for (const [f, h] of Object.entries(state)) {
+    const t = read(f);
+    if (t === null) continue;
+    if (sha(t) === h) acts.push([`delete ${f}`, () => dropFile(f, stamp)]);
+    else kept.push(`${f} (edited by you, kept)`);
+  }
+  if (exists(stateFile)) acts.push([`delete ${stateFile}`, () => dropFile(stateFile, stamp)]);
+  // Gemini context: only the AGENTS.md file name and this repo's directory.
+  const gf = path.join(home, '.gemini', 'settings.json');
+  const raw = read(gf);
+  let data = null;
+  try { data = raw && raw.trim() ? JSON.parse(raw) : null; } catch { kept.push(`${gf} (invalid JSON)`); }
+  if (data && data.context && typeof data.context === 'object') {
+    const ctx = { ...data.context };
+    const norm = (p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    const strip = (key, drop) => {
+      if (ctx[key] === undefined) return false;
+      const list = [].concat(ctx[key]);
+      const next = list.filter((x) => !drop(x));
+      if (next.length === list.length) return false;
+      if (next.length) ctx[key] = Array.isArray(ctx[key]) ? next : next[0]; else delete ctx[key];
+      return true;
+    };
+    const a = strip('fileName', (x) => x === 'AGENTS.md');
+    const b = strip('includeDirectories', (x) => norm(x) === norm(REPO));
+    if (a || b) {
+      const next = { ...data, context: ctx };
+      if (!Object.keys(ctx).length) delete next.context;
+      acts.push([`remove instinct context entries from ${gf}`, () => writeFile(gf, JSON.stringify(next, null, 2) + '\n', stamp)]);
+    }
+  }
+  log(`\n[remove rules] ${acts.length ? (apply ? '' : 'would ') + acts.map((x) => x[0]).join('; ') : 'no change'}` +
+    (kept.length ? `; KEPT (yours): ${kept.join(', ')}` : '') + `; ${shared} is yours and always kept`);
+  if (apply) for (const [, fn] of acts) fn();
+  log(apply ? '\nRemoved. Check with: instinct doctor' : '\nDry run. Re-run with --apply to remove.');
+  return { changed: changed + acts.length > 0, kept };
+}
+
+module.exports = { setup, remove, detectAgents, renderRouting, splitRouting, merged };

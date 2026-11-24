@@ -1,10 +1,12 @@
 # One-click setup of a Windows machine for instinct: agent CLIs, Herdr, then instinct itself.
 # Installs only what is missing; re-run it to update. -DryRun prints every command and runs none.
+# -Uninstall (uninstall.cmd) removes instinct again; see the block below.
 param(
   [string]$Dir = (Join-Path $HOME 'instinct'),
   [string]$Repo = 'https://github.com/poramet-mek/instinct.git',
   [switch]$DryRun,
   [switch]$Yes,
+  [switch]$Uninstall,                # remove instinct (and the clone, if clean); programs stay
   [string[]]$Agents = @(),          # e.g. claude,codex,agy; asked when empty
   [string[]]$AssumeMissing = @(),   # tests: treat these tools as missing (dry run only)
   [string[]]$SimulateFail = @()     # tests: report these steps as failed (dry run only)
@@ -37,6 +39,7 @@ $instinctSetup = @{ failed = $false }
   # Which agents: -Agents, else ask (skipped with -Yes). The default is the choice saved by an
   # earlier run (~/.instinct/config.yml), else all but Gemini CLI (see the note below).
   $allAgents = @('claude', 'codex', 'gemini', 'agy')
+  if ($Uninstall) { $Agents = $allAgents }  # nothing to choose when removing
   $defaultAgents = @('claude', 'codex', 'agy')
   $instinctHome = if ($env:INSTINCT_HOME) { $env:INSTINCT_HOME } else { $HOME }
   $savedFile = Join-Path $instinctHome '.instinct\config.yml'
@@ -89,6 +92,60 @@ $instinctSetup = @{ failed = $false }
       if ($check -and -not (& $check)) { throw 'not found after install (open a new terminal and re-run)' }
       Add-Result 'done' $name ''
     } catch { Update-Path; Add-Result 'failed' $name $_.Exception.Message }
+  }
+
+  if ($Uninstall) {
+    # Uninstall: instinct's own items through `setup --remove`, then the clone if it holds no
+    # uncommitted work. Programs are only listed with their uninstall commands.
+    Write-Host "instinct uninstall for Windows$(if ($DryRun) { ' -- DRY RUN: nothing will be removed' })"
+    $bin = Join-Path $Dir 'bin\instinct.js'
+    $hasBin = Test-Path $bin
+    if ($hasBin) {
+      Write-Host "  plan  instinct-remove : node `"$bin`" setup --remove --apply"
+      # Read-only preview of what goes; skipped in a dry run, which runs nothing.
+      if (-not $DryRun -and (Test-Cmd node)) { & node $bin setup --remove | Out-Host }
+    } else { Write-Host "  skip  instinct-remove ($bin not found)" }
+    $isClone = Test-Path (Join-Path $Dir '.git')
+    $why = @()
+    if ($isClone) {
+      # Read-only git checks decide whether the folder may go: anything not on the remote stays.
+      # Ignored files count too (.scratch/, scores/, HANDOFF.md are the owner's notes); node_modules/ does not.
+      $gitFail = @{ bad = $false }
+      $git = { param([string[]]$a) $global:LASTEXITCODE = 0; $o = (& git -C $Dir @a 2>$null | Out-String); if ($LASTEXITCODE) { $gitFail.bad = $true }; $o }
+      $lines = @(((& $git @('status', '--porcelain', '--ignored')) -split "`n") | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -and $_ -notmatch '^!! (.*/)?node_modules/$' })
+      if ($lines | Where-Object { $_ -notmatch '^!! ' }) { $why += 'uncommitted changes' }
+      if ($lines | Where-Object { $_ -match '^!! ' }) { $why += 'ignored files (e.g. .scratch/, scores/, HANDOFF.md)' }
+      if ((& $git @('log', '--branches', '--not', '--remotes', '--oneline')).Trim()) { $why += 'unpushed commits' }
+      if ((& $git @('stash', 'list')).Trim()) { $why += 'stashed changes' }
+      if ($gitFail.bad) { $why += 'a git check that failed' }
+      if (-not $hasBin) { $why += "no $bin, so instinct's hooks may still point here" }
+      if ($why.Count) { Write-Host "  keep  $Dir : has $($why -join ', '); save or move them, then delete it yourself" }
+      else { Write-Host "  plan  instinct-clone : remove $Dir (nothing local: clean, no ignored files, no unpushed commits, no stash)" }
+    } else { Write-Host "  skip  instinct-clone ($Dir is not a git clone; not touched)" }
+
+    if (-not $Yes -and -not $DryRun) {
+      $answer = Read-Host 'Remove the above? [y/N]'
+      if ($answer -notmatch '^(y|yes)$') { Write-Host 'Nothing removed.'; return }
+    }
+    if ($hasBin) { Invoke-Step 'instinct-remove' "node `"$bin`" setup --remove --apply" { & node $bin setup --remove --apply } }
+    $removeFailed = [bool]($results | Where-Object { $_.name -eq 'instinct-remove' -and $_.state -eq 'failed' })
+    if ($isClone -and -not $why.Count -and $removeFailed) { Write-Host "  keep  $Dir : instinct-remove failed, so hooks may still point here; fix it and re-run" }
+    elseif ($isClone -and -not $why.Count) { Invoke-Step 'instinct-clone' "Remove-Item -Recurse -Force `"$Dir`"" { Remove-Item -LiteralPath $Dir -Recurse -Force } }
+
+    Write-Host ''
+    Write-Host 'Summary'
+    foreach ($r in $results) { Write-Host ('  {0,-8} {1} {2}' -f $r.state, $r.name, $r.note) }
+    Write-Host ''
+    Write-Host 'Programs were not removed. To uninstall them yourself:'
+    Write-Host '  node   : winget uninstall -e --id OpenJS.NodeJS.LTS'
+    Write-Host '  git    : winget uninstall -e --id Git.Git'
+    Write-Host '  agy    : winget uninstall -e --id Google.AntigravityCLI'
+    Write-Host '  codex  : npm uninstall -g @openai/codex'
+    Write-Host '  gemini : npm uninstall -g @google/gemini-cli'
+    Write-Host '  claude : delete the file (Get-Command claude).Source; delete ~\.claude too only if you want its settings gone'
+    Write-Host '  herdr  : Settings > Apps > Installed apps > Herdr > Uninstall (or delete %LOCALAPPDATA%\Programs\herdr-app and herdr-core)'
+    $instinctSetup.failed = [bool]($results | Where-Object state -eq 'failed')
+    return
   }
 
   Write-Host "instinct setup for Windows$(if ($DryRun) { ' -- DRY RUN: nothing will be installed' })"

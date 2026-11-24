@@ -24,6 +24,7 @@ const USAGE = `instinct <command>
   agents [--json]                         each agent: on, off (not chosen) or unavailable (<reason>)
   doctor [--json]                       per agent: rules, hooks, skills, roles (read-only)
   setup     [--apply] [--agents claude,codex,gemini,agy]  new machine: choose agents (saved in ~/.instinct/config.yml), hooks, skills, rules
+  setup     --remove [--apply]  undo setup: instinct's hooks, skills, rules, config; keeps what you changed
   install   [--apply] [--agents claude,codex,gemini,agy]
   uninstall [--apply] [--agents claude,codex,gemini,agy]`;
 
@@ -243,6 +244,8 @@ function main() {
       const d = require('../core/doctor');
       const rows = d.doctor();
       console.log(a.json ? JSON.stringify(rows, null, 2) : d.format(rows));
+    } else if (cmd === 'setup' && a.remove) {
+      require('../install/setup').remove({ apply: a.apply === true });
     } else if (cmd === 'setup') {
       // Ask on a terminal only; piped or CI runs keep 1.0.0 behavior (all agents, nothing saved).
       const ask = process.stdin.isTTY ? (found) => {

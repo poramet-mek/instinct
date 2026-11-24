@@ -117,3 +117,95 @@ test('-Yes never asks which agents', { skip: !win }, () => {
   assert.doesNotMatch(out, /Which will you use/);
   assert.match(out, /--agents claude,codex,agy/);
 });
+
+// -Uninstall (uninstall.cmd): dry run only; nothing is removed here.
+const fsx = require('fs');
+// A clone of a temp bare remote with bin/instinct.js pushed: nothing local unless asked.
+function gitRepo(dirty, { ignored, unpushed, stash } = {}) {
+  const tmp = fsx.mkdtempSync(path.join(require('os').tmpdir(), 'instinct-un-'));
+  const g = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' });
+  const bare = path.join(tmp, 'remote.git');
+  const d = path.join(tmp, 'clone');
+  g('init', '-q', '--bare', bare);
+  g('clone', '-q', bare, d);
+  fsx.mkdirSync(path.join(d, 'bin'));
+  fsx.writeFileSync(path.join(d, 'bin', 'instinct.js'), '');
+  fsx.writeFileSync(path.join(d, '.gitignore'), '.scratch/\nnode_modules/\n');
+  g('-C', d, 'add', '.');
+  g('-C', d, 'commit', '-qm', 'init');
+  g('-C', d, 'push', '-q', 'origin', 'HEAD');
+  fsx.mkdirSync(path.join(d, 'node_modules'));
+  fsx.writeFileSync(path.join(d, 'node_modules', 'x.js'), '');
+  if (dirty) fsx.writeFileSync(path.join(d, 'wip.txt'), 'x');
+  if (ignored) { fsx.mkdirSync(path.join(d, '.scratch')); fsx.writeFileSync(path.join(d, '.scratch', 'notes.md'), 'x'); }
+  if (unpushed) { fsx.writeFileSync(path.join(d, 'new.txt'), 'x'); g('-C', d, 'add', '.'); g('-C', d, 'commit', '-qm', 'local'); }
+  if (stash) { fsx.writeFileSync(path.join(d, 'bin', 'instinct.js'), 'x'); g('-C', d, 'stash', '-q'); }
+  return d;
+}
+
+test('-Uninstall dry run shows what goes, removes nothing, lists program uninstall commands', { skip: !win }, () => {
+  const d = gitRepo(false);
+  const { code, out } = run('-Uninstall', '-Dir', d);
+  assert.equal(code, 0, out);
+  assert.match(out, /DRY RUN/);
+  assert.match(out, /plan\s+instinct-clone : remove/);
+  assert.match(out, /run\s+instinct-clone/);
+  assert.ok(fsx.existsSync(path.join(d, '.git')), 'dry run removed nothing');
+  assert.match(out, /winget uninstall -e --id OpenJS\.NodeJS\.LTS/);
+  assert.match(out, /winget uninstall -e --id Git\.Git/);
+  assert.match(out, /winget uninstall -e --id Google\.AntigravityCLI/);
+  assert.match(out, /npm uninstall -g @openai\/codex/);
+  assert.match(out, /npm uninstall -g @google\/gemini-cli/);
+  assert.match(out, /herdr\s*:/);
+  assert.match(out, /claude\s*:/);
+  assert.doesNotMatch(out, /Which will you use|winget install/);
+});
+
+test('-Uninstall runs setup --remove --apply from the clone', { skip: !win }, () => {
+  const { out } = run('-Uninstall', '-Dir', path.resolve(__dirname, '..'));
+  assert.match(out, /run\s+instinct-remove : node ".*instinct\.js" setup --remove --apply/);
+});
+
+test('-Uninstall keeps a clone with uncommitted work and warns', { skip: !win }, () => {
+  const d = gitRepo(true);
+  const { out } = run('-Uninstall', '-Dir', d);
+  assert.match(out, /keep\s+.*uncommitted changes/);
+  assert.doesNotMatch(out, /instinct-clone/);
+});
+
+test('-Uninstall asks once; answering no removes nothing', { skip: !win }, () => {
+  const d = gitRepo(false);
+  const { code, out } = runRaw(['-Uninstall', '-Dir', d], 'n\n');
+  assert.equal(code, 0, out);
+  assert.match(out, /Nothing removed/);
+  assert.doesNotMatch(out, /run\s+/);
+  assert.ok(fsx.existsSync(path.join(d, '.git')));
+});
+
+test('uninstall.cmd passes -Uninstall to setup.ps1', () => {
+  const t = fsx.readFileSync(path.join(path.dirname(PS1), 'uninstall.cmd'), 'utf8');
+  assert.match(t, /setup\.ps1" -Uninstall %\*/);
+});
+
+for (const [name, opt, why] of [['ignored files', { ignored: true }, /ignored files/], ['unpushed commits', { unpushed: true }, /unpushed commits/], ['a stash', { stash: true }, /stashed changes/]]) {
+  test(`-Uninstall keeps a clone with ${name}`, { skip: !win }, () => {
+    const { out } = run('-Uninstall', '-Dir', gitRepo(false, opt));
+    assert.match(out, why);
+    assert.match(out, /keep\s+/);
+    assert.doesNotMatch(out, /instinct-clone/);
+  });
+}
+
+test('-Uninstall never removes the clone when instinct-remove failed', { skip: !win }, () => {
+  const { out } = run('-Uninstall', '-Dir', gitRepo(false), '-SimulateFail', 'instinct-remove');
+  assert.match(out, /failed\s+instinct-remove/);
+  assert.match(out, /keep\s+.*instinct-remove failed/);
+  assert.doesNotMatch(out, /run\s+instinct-clone/);
+});
+
+test('-Uninstall keeps a clone without bin/instinct.js', { skip: !win }, () => {
+  const d = gitRepo(false);
+  fsx.rmSync(path.join(d, 'bin'), { recursive: true });
+  const { out } = run('-Uninstall', '-Dir', d);
+  assert.match(out, /keep\s+.*no .*instinct\.js/);
+});
