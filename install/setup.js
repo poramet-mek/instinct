@@ -245,7 +245,10 @@ function setup({ apply = false, home = process.env.INSTINCT_HOME || os.homedir()
   if (agents) agents = ALL.filter((a) => agents.includes(a));
   if (save) {
     const f = config.machineConfigPath(home);
-    const text = `# Agents this machine uses (instinct setup). The others are never routed to.\nagents: [${agents.join(', ')}]\n`;
+    const head = `# Agents this machine uses (instinct setup). The others are never routed to.\nagents: [${agents.join(', ')}]\n`;
+    // Keep the rest of the file (pauses); drop only our old header and agents line.
+    const rest = (read(f) || '').split(/\r?\n/).filter((l) => !/^agents:/.test(l) && !l.startsWith('# Agents this machine uses')).join('\n').replace(/^\n+/, '');
+    const text = head + rest;
     if (read(f) !== text) {
       log(`\n[agents] ${apply ? '' : 'would '}save ${agents.join(', ') || '(none)'} to ${f}`);
       if (apply) writeFile(f, text, stamp);

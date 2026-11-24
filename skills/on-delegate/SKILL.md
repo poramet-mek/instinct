@@ -45,6 +45,8 @@ Task types (keep to these so scores add up): `review`, `build`, `test`, `bug`, `
    - **Scores.** Never started → not scored. Started, then errored or stalled → score it with
      correct 0 and say so in the note.
    - **Reviewers** fall back the same way, never to the builder's own vendor.
+   - **Pause.** If it is unusable for a while (quota, usage limit, model unavailable), propose
+     `instinct agents pause <agent> --until <date if known> --reason <short>` and ask the owner; never pause on your own.
    Say in one line which vendor failed and why. No allowed agent left → stop and report.
 
 5. **Check the result yourself.** Read the actual output and diff, run the tests. Never pass

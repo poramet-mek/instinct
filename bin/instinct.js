@@ -21,7 +21,8 @@ const USAGE = `instinct <command>
                                           agent + cross-vendor reviewer; --size picks by task fit, else build rotates vendors
   dispatch --role <r> --vendor claude|codex|gemini|agy --task <file> [--model m | --level std|high] [--cwd dir] [--name n] [--lead <id>] [--json]
                                           print (never run) the launch command for a helper in a role
-  agents [--json]                         each agent: on, off (not chosen) or unavailable (<reason>)
+  agents [--json]                         each agent: on, off (not chosen), paused or unavailable (<reason>)
+  agents pause <agent> [--until YYYY-MM-DD] [--reason <text>] | resume <agent>
   doctor [--json]                       per agent: rules, hooks, skills, roles (read-only)
   setup     [--apply] [--agents claude,codex,gemini,agy]  new machine: choose agents (saved in ~/.instinct/config.yml), hooks, skills, rules
   setup     --remove [--apply]  undo setup: instinct's hooks, skills, rules, config; keeps what you changed
@@ -236,9 +237,17 @@ function main() {
         cwd: str('cwd'), name: str('name'), lead: str('lead'), unavailable: unavail, leadAgent: cfg.detectLead(process.env, unavail) });
       console.log(a.json ? JSON.stringify(r, null, 2) : r.command);
       if (!a.json && r.note) console.error(`note: ${r.note}`);
+    } else if (cmd === 'agents' && (a._[1] === 'pause' || a._[1] === 'resume')) {
+      const cfg = require('../core/config');
+      const home = process.env.INSTINCT_HOME || require('os').homedir();
+      const str = (k) => (typeof a[k] === 'string' ? a[k] : a[k] === true ? '' : undefined);
+      if (a._[1] === 'pause') {
+        cfg.pauseAgent(home, a._[2], { until: str('until'), reason: str('reason') });
+        console.log(`paused ${a._[2]}` + (str('until') ? ` until ${a.until}` : ' until resume'));
+      } else { cfg.resumeAgent(home, a._[2]); console.log(`resumed ${a._[2]}`); }
     } else if (cmd === 'agents') {
       const rows = require('../core/config').agentStatus(process.env, process.cwd());
-      const word = (r) => (r.status === 'on' ? 'on' : r.status === 'off' ? 'off (not chosen)' : `unavailable (${r.reason})`);
+      const word = (r) => (r.status === 'on' ? 'on' : r.status === 'off' ? 'off (not chosen)' : r.status === 'paused' ? `paused${r.reason ? ` (${r.reason})` : ''}` : `unavailable (${r.reason})`);
       console.log(a.json ? JSON.stringify(rows, null, 2) : rows.map((r) => `${r.agent.padEnd(7)} ${word(r)}`).join('\n'));
     } else if (cmd === 'doctor') {
       const d = require('../core/doctor');

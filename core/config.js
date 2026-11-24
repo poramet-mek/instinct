@@ -71,8 +71,9 @@ function chosenAgents(home = process.env.INSTINCT_HOME || os.homedir()) {
 
 // Agents that cannot be used now: not chosen on this machine, INSTINCT_UNAVAILABLE=a,b,
 // or `unavailable:` in the repo's .instinct/config.yml.
-function unavailableAgents(env = process.env, cwd = process.cwd()) {
+function unavailableAgents(env = process.env, cwd = process.cwd(), today) {
   const out = new Set(String(env.INSTINCT_UNAVAILABLE || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
+  for (const p of activePauses(env.INSTINCT_HOME || os.homedir(), today || env.INSTINCT_TODAY)) out.add(p.agent);
   const chosen = chosenAgents(env.INSTINCT_HOME || os.homedir());
   if (chosen) for (const a of AGENTS) if (!chosen.includes(a)) out.add(a);
   let cfg = null;
@@ -90,8 +91,62 @@ function unavailableAgents(env = process.env, cwd = process.cwd()) {
 
 const AGENTS = ['claude', 'codex', 'gemini', 'agy'];
 
+// Pauses live in ~/.instinct/config.yml as a `paused:` list apart from `agents:`.
+// Local calendar date: a pause --until 2026-12-13 ends at local midnight, not UTC.
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function readPauses(home) {
+  try {
+    const list = parseFrontmatter(fs.readFileSync(machineConfigPath(home), 'utf8')).paused;
+    return (Array.isArray(list) ? list : []).filter((x) => x && typeof x === 'object' && AGENTS.includes(String(x.agent).toLowerCase()))
+      .map((x) => ({ agent: String(x.agent).toLowerCase(), until: x.until ? String(x.until) : '', reason: x.reason ? String(x.reason) : '' }));
+  } catch { return []; }
+}
+// A pause holds through its `until` day; with no date it holds until resume.
+const activePauses = (home, today = todayStr()) => readPauses(home).filter((p) => !p.until || p.until >= today);
+
+function writePauses(home, pauses) {
+  const f = machineConfigPath(home);
+  let text = '';
+  try { text = fs.readFileSync(f, 'utf8'); } catch { /* new file */ }
+  const kept = [];
+  let skipping = false;
+  for (const l of text.split(/\r?\n/)) {
+    if (/^paused:/.test(l)) { skipping = true; continue; }
+    if (skipping && (/^\s/.test(l) || !l.trim())) continue;
+    skipping = false;
+    kept.push(l);
+  }
+  let out = kept.join('\n').replace(/\n+$/, '');
+  if (pauses.length) {
+    out += (out ? '\n' : '') + 'paused:\n' + pauses.map((p) => `  - agent: ${p.agent}` + (p.until ? `\n    until: ${p.until}` : '') +
+      (p.reason ? `\n    reason: ${JSON.stringify(p.reason)}` : '')).join('\n');
+  }
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, out ? out + '\n' : '');
+}
+
+function checkAgent(agent) {
+  agent = String(agent || '').trim().toLowerCase();
+  if (!AGENTS.includes(agent)) throw new Error(`unknown agent "${agent}" (valid: ${AGENTS.join(', ')})`);
+  return agent;
+}
+
+function pauseAgent(home, agent, { until, reason } = {}) {
+  agent = checkAgent(agent);
+  if (until !== undefined && (!/^\d{4}-\d{2}-\d{2}$/.test(until) || isNaN(Date.parse(until)) || new Date(until + 'T00:00:00Z').toISOString().slice(0, 10) !== until)) {
+    throw new Error('--until needs a date as YYYY-MM-DD');
+  }
+  writePauses(home, [...readPauses(home).filter((p) => p.agent !== agent), { agent, until: until || '', reason: reason || '' }]);
+}
+
+function resumeAgent(home, agent) {
+  agent = checkAgent(agent);
+  writePauses(home, readPauses(home).filter((p) => p.agent !== agent));
+}
+
 // Each agent as on / off (not chosen on this machine) / unavailable (<reason>), same sources as unavailableAgents.
-function agentStatus(env = process.env, cwd = process.cwd()) {
+function agentStatus(env = process.env, cwd = process.cwd(), today) {
+  const paused = activePauses(env.INSTINCT_HOME || os.homedir(), today || env.INSTINCT_TODAY);
   const chosen = chosenAgents(env.INSTINCT_HOME || os.homedir());
   const fromEnv = String(env.INSTINCT_UNAVAILABLE || '').split(',').map((x) => x.trim().toLowerCase());
   let repo = [];
@@ -101,6 +156,8 @@ function agentStatus(env = process.env, cwd = process.cwd()) {
   } catch { /* unreadable config: ignored */ }
   return AGENTS.map((agent) => {
     if (chosen && !chosen.includes(agent)) return { agent, status: 'off', reason: 'not chosen' };
+    const p = paused.find((x) => x.agent === agent);
+    if (p) return { agent, status: 'paused', reason: [p.reason, p.until && `until ${p.until}`].filter(Boolean).join(', ') };
     if (fromEnv.includes(agent)) return { agent, status: 'unavailable', reason: 'INSTINCT_UNAVAILABLE' };
     if (repo.includes(agent)) return { agent, status: 'unavailable', reason: 'repo .instinct/config.yml' };
     return { agent, status: 'on', reason: '' };
@@ -108,13 +165,14 @@ function agentStatus(env = process.env, cwd = process.cwd()) {
 }
 
 // Session-start block: one line, e.g. `on: claude, codex · off: gemini (not chosen)`.
-function agentsBlock(env = process.env, cwd = process.cwd()) {
-  const rows = agentStatus(env, cwd);
+function agentsBlock(env = process.env, cwd = process.cwd(), today) {
+  const rows = agentStatus(env, cwd, today);
+  const pa = rows.filter((r) => r.status === 'paused').map((r) => `${r.agent} paused${r.reason ? ` (${r.reason})` : ''}`);
   const on = rows.filter((r) => r.status === 'on').map((r) => r.agent);
   const off = rows.filter((r) => r.status === 'off').map((r) => r.agent);
   const un = rows.filter((r) => r.status === 'unavailable').map((r) => `${r.agent} (${r.reason})`);
   return '## instinct: agents\n\n' + `on: ${on.join(', ') || 'none'}` + (off.length ? ` · off: ${off.join(', ')}` : '') +
-    (un.length ? ` · unavailable: ${un.join(', ')}` : '') +
+    (un.length ? ` · unavailable: ${un.join(', ')}` : '') + (pa.length ? ` · ${pa.join(', ')}` : '') +
     '\nDelegate, build and review only with agents that are on; `instinct route` picks among them. With no other vendor on, review with a Claude subagent (surgeon-reviewer) and tell the user.';
 }
 
@@ -130,4 +188,4 @@ function detectLead(env = process.env, unavailable = []) {
   return unavailable.includes(found) ? 'none' : found;
 }
 
-module.exports = { machineConfigPath, chosenAgents, configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead, agentStatus, agentsBlock, AGENTS };
+module.exports = { todayStr, machineConfigPath, chosenAgents, configPath, loadConfig, detect, draft, sanitizeUrl, unavailableAgents, detectLead, agentStatus, agentsBlock, readPauses, activePauses, pauseAgent, resumeAgent, AGENTS };
