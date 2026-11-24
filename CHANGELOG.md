@@ -10,6 +10,9 @@
 - `instinct agents pause <agent> [--until <date>] [--reason ..]` and `resume`.
 - One-click uninstall: `instinct setup --remove` and `install/windows/uninstall.cmd`.
 
+### Fixed
+- The installer no longer reports the doctor step as failed when some agents are off.
+
 ## 1.0.0
 
 ### Added
