@@ -50,7 +50,7 @@ function run({ mode = 'install', apply = false, home = process.env.INSTINCT_HOME
       const cmd = `node "${BIN}" hook ${t.agent}`;
       const next = mode === 'uninstall' ? t.strip(data) : t.add(data, cmd);
       const changed = JSON.stringify(next) !== JSON.stringify(data);
-      log(`\n[${t.agent}] ${t.file} — ${changed ? (apply ? 'updated' : 'would change') : 'no change'}`);
+      log(`\n[${t.agent}] ${t.file}: ${changed ? (apply ? 'updated' : 'would change') : 'no change'}`);
       if (changed && !apply) log(JSON.stringify(mode === 'uninstall' ? data.hooks || data : next.hooks || next.instinct, null, 2));
       if (changed && apply) writeJson(t.file, next, stamp);
       results.push({ agent: t.agent, file: t.file, changed });
@@ -92,7 +92,7 @@ function agySkills({ mode, apply, home, log }) {
   const foreign = ours.filter((n) => fs.existsSync(path.join(dest, n)) && !managed.includes(n));
   const remove = mode === 'uninstall' ? managed : managed.filter((n) => !ours.includes(n));
   const copy = mode === 'uninstall' ? [] : ours.filter((n) => !foreign.includes(n));
-  log(`\n[agy skills] ${dest} — ${apply ? '' : 'would '}copy ${copy.length}, remove ${remove.length}` +
+  log(`\n[agy skills] ${dest}: ${apply ? '' : 'would '}copy ${copy.length}, remove ${remove.length}` +
     (foreign.length ? `; SKIPPED (not ours, not touched): ${foreign.join(', ')}` : ''));
   if (apply) {
     // Rename before deleting and build copies under a temp name with the marker already inside,
@@ -139,7 +139,7 @@ function geminiCommands({ mode, apply, home, log }) {
   const foreign = present.filter((f) => !owned.includes(f) && wanted.has(f));
   const remove = mode === 'uninstall' ? owned : owned.filter((f) => !wanted.has(f));
   const write = mode === 'uninstall' ? [] : names.filter((n) => !foreign.includes('instinct-' + n + '.toml'));
-  log('\n[gemini commands] ' + dest + ' — ' + (apply ? '' : 'would ') + 'write ' + write.length + ', remove ' + remove.length +
+  log('\n[gemini commands] ' + dest + ': ' + (apply ? '' : 'would ') + 'write ' + write.length + ', remove ' + remove.length +
     (foreign.length ? '; SKIPPED (not ours, not touched): ' + foreign.join(', ') : ''));
   if (apply && (write.length || remove.length)) {
     fs.mkdirSync(dest, { recursive: true });

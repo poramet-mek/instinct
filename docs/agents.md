@@ -29,6 +29,6 @@ wrong, so name the lead when it matters. A detected lead that is unavailable is 
 Unavailable names other than claude|codex|gemini|agy print a warning on stderr and are ignored.
 
 Helpers report with `hc send <lead-id> "<result>"` where `<lead-id>` is the lead's own
-`$HC_TERMINAL_ID` written out literally (see `~/.agents/AGENTS.md`).
+`$HC_TERMINAL_ID` written out literally (see `~/.agents/instinct.md`).
 
 A plain-text question is always enough: ask, stop, and wait for the owner's answer.

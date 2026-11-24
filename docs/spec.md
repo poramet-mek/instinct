@@ -79,7 +79,7 @@ the work, not a later task.
   - Number of rework rounds.
   - Honest reporting.
 - Scores are kept per agent × task type, with links to the evidence, in the general tier.
-- Cold start: the static routing table in `~/.agents/AGENTS.md`. Scores take over for a task
+- Cold start: the static routing table in `~/.agents/instinct.md`. Scores take over for a task
   type once it has **5+ scored tasks**. The user can edit any score, and the user's edit
   outweighs Claude's.
 

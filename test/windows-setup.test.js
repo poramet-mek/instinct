@@ -31,7 +31,7 @@ test('tools already present are skipped', { skip: !win }, () => {
 });
 
 test('one failure does not stop the rest and shows in the summary', { skip: !win }, () => {
-  const { out } = run('-AssumeMissing', 'codex,gemini', '-SimulateFail', 'codex');
+  const { out } = run('-Agents', 'claude,codex,gemini,agy', '-AssumeMissing', 'codex,gemini', '-SimulateFail', 'codex');
   assert.match(out, /npm i -g @google\/gemini-cli/);
   assert.match(out, /failed\s+codex/);
   assert.match(out, /instinct\.js"? setup --apply/);
@@ -57,7 +57,7 @@ test('test-only switches are refused outside a dry run', { skip: !win }, () => {
 });
 
 test('answering no installs nothing', { skip: !win }, () => {
-  const { code, out } = runRaw(['-Dir', path.join(require('os').tmpdir(), 'instinct no such')], 'n\n');
+  const { code, out } = runRaw(['-Dir', path.join(require('os').tmpdir(), 'instinct no such'), '-Agents', 'claude'], 'n\n');
   assert.equal(code, 0);
   assert.match(out, /Nothing installed/);
   assert.doesNotMatch(out, /run\s+/);
@@ -66,4 +66,146 @@ test('answering no installs nothing', { skip: !win }, () => {
 test('a -Dir with spaces stays one quoted path', { skip: !win }, () => {
   const { out } = run('-Dir', 'C:\\x\\John Doe\\instinct');
   assert.match(out, /git clone \S+ "C:\\x\\John Doe\\instinct"/);
+});
+
+test('-Agents picks what is installed and passed on; Herdr, Node and Git always', { skip: !win }, () => {
+  const { out } = run('-Agents', 'claude,agy', '-AssumeMissing', 'node,git,herdr,claude,codex,gemini,agy');
+  assert.match(out, /plan\s+claude/);
+  assert.match(out, /plan\s+agy/);
+  assert.match(out, /plan\s+herdr/);
+  assert.match(out, /plan\s+node/);
+  assert.doesNotMatch(out, /@openai\/codex|@google\/gemini-cli/);
+  assert.match(out, /setup --apply --agents claude,agy/);
+  assert.match(out, /claude\s+\|\s+agy/);
+  assert.doesNotMatch(out, /codex login|gemini/);
+});
+
+test('without -Agents the prompt leaves gemini out by default and says why', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome() }, [], '\n');
+  assert.match(out, /Enter = claude,codex,agy/);
+  assert.match(out, /Gemini CLI.*API key/i);
+  assert.match(out, /setup --apply --agents claude,codex,agy/);
+});
+
+test('an unknown agent name is refused', { skip: !win }, () => {
+  const { code, out } = run('-Agents', 'claude,cladue');
+  assert.equal(code, 1);
+  assert.match(out, /unknown agent "cladue"/);
+});
+
+function withHome(agentsLine) {
+  const h = require('fs').mkdtempSync(path.join(require('os').tmpdir(), 'instinct-ps-'));
+  if (agentsLine) {
+    require('fs').mkdirSync(path.join(h, '.instinct'));
+    require('fs').writeFileSync(path.join(h, '.instinct', 'config.yml'), agentsLine + '\n');
+  }
+  return h;
+}
+function runEnv(env, args, input) {
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PS1, '-DryRun', ...args],
+    { encoding: 'utf8', input, env: { ...process.env, ...env } });
+  return (r.stdout || '') + (r.stderr || '');
+}
+
+test('a re-run defaults to the saved choice, not the built-in one', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome('agents: [claude, gemini]') }, ['-Yes'], '\n');
+  assert.match(out, /setup --apply --agents claude,gemini/);
+});
+
+test('-Yes never asks which agents', { skip: !win }, () => {
+  const out = runEnv({ INSTINCT_HOME: withHome() }, ['-Yes'], 'gemini\n');
+  assert.doesNotMatch(out, /Which will you use/);
+  assert.match(out, /--agents claude,codex,agy/);
+});
+
+// -Uninstall (uninstall.cmd): dry run only; nothing is removed here.
+const fsx = require('fs');
+// A clone of a temp bare remote with bin/instinct.js pushed: nothing local unless asked.
+function gitRepo(dirty, { ignored, unpushed, stash } = {}) {
+  const tmp = fsx.mkdtempSync(path.join(require('os').tmpdir(), 'instinct-un-'));
+  const g = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { encoding: 'utf8' });
+  const bare = path.join(tmp, 'remote.git');
+  const d = path.join(tmp, 'clone');
+  g('init', '-q', '--bare', bare);
+  g('clone', '-q', bare, d);
+  fsx.mkdirSync(path.join(d, 'bin'));
+  fsx.writeFileSync(path.join(d, 'bin', 'instinct.js'), '');
+  fsx.writeFileSync(path.join(d, '.gitignore'), '.scratch/\nnode_modules/\n');
+  g('-C', d, 'add', '.');
+  g('-C', d, 'commit', '-qm', 'init');
+  g('-C', d, 'push', '-q', 'origin', 'HEAD');
+  fsx.mkdirSync(path.join(d, 'node_modules'));
+  fsx.writeFileSync(path.join(d, 'node_modules', 'x.js'), '');
+  if (dirty) fsx.writeFileSync(path.join(d, 'wip.txt'), 'x');
+  if (ignored) { fsx.mkdirSync(path.join(d, '.scratch')); fsx.writeFileSync(path.join(d, '.scratch', 'notes.md'), 'x'); }
+  if (unpushed) { fsx.writeFileSync(path.join(d, 'new.txt'), 'x'); g('-C', d, 'add', '.'); g('-C', d, 'commit', '-qm', 'local'); }
+  if (stash) { fsx.writeFileSync(path.join(d, 'bin', 'instinct.js'), 'x'); g('-C', d, 'stash', '-q'); }
+  return d;
+}
+
+test('-Uninstall dry run shows what goes, removes nothing, lists program uninstall commands', { skip: !win }, () => {
+  const d = gitRepo(false);
+  const { code, out } = run('-Uninstall', '-Dir', d);
+  assert.equal(code, 0, out);
+  assert.match(out, /DRY RUN/);
+  assert.match(out, /plan\s+instinct-clone : remove/);
+  assert.match(out, /run\s+instinct-clone/);
+  assert.ok(fsx.existsSync(path.join(d, '.git')), 'dry run removed nothing');
+  assert.match(out, /winget uninstall -e --id OpenJS\.NodeJS\.LTS/);
+  assert.match(out, /winget uninstall -e --id Git\.Git/);
+  assert.match(out, /winget uninstall -e --id Google\.AntigravityCLI/);
+  assert.match(out, /npm uninstall -g @openai\/codex/);
+  assert.match(out, /npm uninstall -g @google\/gemini-cli/);
+  assert.match(out, /herdr\s*:/);
+  assert.match(out, /claude\s*:/);
+  assert.doesNotMatch(out, /Which will you use|winget install/);
+});
+
+test('-Uninstall runs setup --remove --apply from the clone', { skip: !win }, () => {
+  const { out } = run('-Uninstall', '-Dir', path.resolve(__dirname, '..'));
+  assert.match(out, /run\s+instinct-remove : node ".*instinct\.js" setup --remove --apply/);
+});
+
+test('-Uninstall keeps a clone with uncommitted work and warns', { skip: !win }, () => {
+  const d = gitRepo(true);
+  const { out } = run('-Uninstall', '-Dir', d);
+  assert.match(out, /keep\s+.*uncommitted changes/);
+  assert.doesNotMatch(out, /instinct-clone/);
+});
+
+test('-Uninstall asks once; answering no removes nothing', { skip: !win }, () => {
+  const d = gitRepo(false);
+  const { code, out } = runRaw(['-Uninstall', '-Dir', d], 'n\n');
+  assert.equal(code, 0, out);
+  assert.match(out, /Nothing removed/);
+  assert.doesNotMatch(out, /run\s+/);
+  assert.ok(fsx.existsSync(path.join(d, '.git')));
+});
+
+test('uninstall.cmd passes -Uninstall to setup.ps1', () => {
+  const t = fsx.readFileSync(path.join(path.dirname(PS1), 'uninstall.cmd'), 'utf8');
+  assert.match(t, /setup\.ps1" -Uninstall %\*/);
+});
+
+for (const [name, opt, why] of [['ignored files', { ignored: true }, /ignored files/], ['unpushed commits', { unpushed: true }, /unpushed commits/], ['a stash', { stash: true }, /stashed changes/]]) {
+  test(`-Uninstall keeps a clone with ${name}`, { skip: !win }, () => {
+    const { out } = run('-Uninstall', '-Dir', gitRepo(false, opt));
+    assert.match(out, why);
+    assert.match(out, /keep\s+/);
+    assert.doesNotMatch(out, /instinct-clone/);
+  });
+}
+
+test('-Uninstall never removes the clone when instinct-remove failed', { skip: !win }, () => {
+  const { out } = run('-Uninstall', '-Dir', gitRepo(false), '-SimulateFail', 'instinct-remove');
+  assert.match(out, /failed\s+instinct-remove/);
+  assert.match(out, /keep\s+.*instinct-remove failed/);
+  assert.doesNotMatch(out, /run\s+instinct-clone/);
+});
+
+test('-Uninstall keeps a clone without bin/instinct.js', { skip: !win }, () => {
+  const d = gitRepo(false);
+  fsx.rmSync(path.join(d, 'bin'), { recursive: true });
+  const { out } = run('-Uninstall', '-Dir', d);
+  assert.match(out, /keep\s+.*no .*instinct\.js/);
 });

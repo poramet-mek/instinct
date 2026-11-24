@@ -109,7 +109,7 @@ function reviewerFor(agent, skip = [], lead) {
 const ROTATION = { build: ['gemini', 'codex', 'agy', 'claude'] }; // owner order, 2026-11-24
 const WARMUP = 3;
 const EXPLORE_EVERY = 5; // after warm-up, every 5th build goes to the least-sampled vendor
-const CLAUDE_NOTE = '; claude = the Claude subagent from the routing table in ~/.agents/AGENTS.md';
+const CLAUDE_NOTE = '; claude = the Claude subagent from the routing table in ~/.agents/instinct.md';
 const least = (rows) => rows.reduce((a, r) => (r.tasks < a.tasks ? r : a));
 
 // skip: vendors that cannot be reached now (not installed, no quota); they are left out entirely.
@@ -185,7 +185,10 @@ const LEADS = ['claude', 'codex', 'gemini', 'agy', 'none'];
 function route(entries, type, { skip = [], size, design, red, lead } = {}) {
   if (lead !== undefined && !LEADS.includes(lead)) throw new Error(`--lead must be one of ${LEADS.join('|')}`);
   const r = pick(entries, type, { skip, size, design, red, lead });
-  if (r.agent && r.reviewer === NONE) {
+  if (r.agent && r.reviewer === NONE && !skip.includes('claude')) {
+    r.reviewer = 'surgeon-reviewer';
+    r.note = `${r.note ? r.note + '; ' : ''}no other vendor is on: review with a Claude subagent (surgeon-reviewer) and tell the user`;
+  } else if (r.agent && r.reviewer === NONE) {
     r.source = 'static';
     r.note = `no reviewer reachable: ${r.agent} built it and no other company is available to review; stop and report`;
   }
@@ -200,8 +203,9 @@ function pick(entries, type, { skip, size, design, red, lead }) {
   const ranked = rows.filter((r) => r.tasks >= MIN_TASKS && !skip.includes(vendorOf(r.agent)));
   if (!ranked.length) return { source: 'static', type, tasks: total,
     reviewer: ['claude', 'codex', 'gemini', 'agy'].every((v) => skip.includes(v)) ? NONE
+      : ['codex', 'gemini', 'agy'].every((v) => skip.includes(v)) ? 'surgeon-reviewer (no other vendor is on: use a Claude subagent and tell the user)'
       : skip.includes('claude') ? 'another company from the agent you pick (codex <-> gemini; gemini and agy are one company)'
-        : 'a different vendor from the agent you pick (codex for Claude subagents, surgeon-reviewer otherwise)', note: `no agent has ${MIN_TASKS}+ scored ${type} tasks: use the routing table in ~/.agents/AGENTS.md` };
+        : 'a different vendor from the agent you pick (codex for Claude subagents, surgeon-reviewer otherwise)', note: `no agent has ${MIN_TASKS}+ scored ${type} tasks: use the routing table in ~/.agents/instinct.md` };
   return { source: 'scores', type, tasks: total, agent: ranked[0].agent, reviewer: reviewerFor(ranked[0].agent, skip, lead), ranking: ranked };
 }
 

@@ -33,8 +33,8 @@ Run it from the project directory.
    - 🟢 green: review the diff yourself.
    - 🟡 yellow: `surgeon-reviewer` (or roles/surgeon-reviewer.md via `instinct dispatch` on any vendor) on the diff.
    - Model for any reviewer above: per the table in `instinct-autopilot` "Model level" (🟢 the lead reviews).
-   - 🔴 red: `surgeon-reviewer` (or roles/surgeon-reviewer.md via `instinct dispatch` on any vendor) **and** an agent from another vendor (e.g. Codex via `hc`;
-     see `~/.agents/AGENTS.md`). Give both the same narrow, read-only scope.
+   - 🔴 red: `surgeon-reviewer` (or roles/surgeon-reviewer.md via `instinct dispatch` on any vendor) **and** an agent from another vendor that is `on` in the "instinct: agents" block (`instinct route` names it;
+     launch how-to in `<instinct>/docs/agents.md`). None on → a Claude subagent, and tell the user. Give both the same narrow, read-only scope.
    Fix real findings locally (do not commit yet; that waits for step 7), re-run tests,
    and re-review if the fix was non-trivial.
    Keep every finding and what you did with it for the PR body.
