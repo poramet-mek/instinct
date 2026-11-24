@@ -1,0 +1,7 @@
+node_modules/
+*.instinct-tmp
+*.tmp
+# Private working notes; kept on the owner's machine only.
+.scratch/
+scores/
+HANDOFF.md
