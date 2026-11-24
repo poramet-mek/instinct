@@ -86,6 +86,7 @@ $instinctSetup = @{ failed = $false }
     }
     try {
       $global:LASTEXITCODE = 0
+      $ErrorActionPreference = 'Stop'   # a cmdlet error (Remove-Item on a folder in use) is a failure
       & $run | Out-Host   # stream output live instead of returning it
       if ($LASTEXITCODE) { throw "exit code $LASTEXITCODE" }
       Update-Path

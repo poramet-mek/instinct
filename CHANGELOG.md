@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+### Fixed
+- Windows uninstall no longer reports a step as done when a cmdlet fails, e.g. the clone folder is in use.
+
 ## 1.1.1
 
 ### Fixed

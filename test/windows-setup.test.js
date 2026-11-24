@@ -215,3 +215,22 @@ test('the doctor step does not count agents that are off as missing', () => {
   const line = src.split('\n').find((l) => /doctor found missing items/.test(l));
   assert.match(line, /'off'/, 'off rows must be excluded from the failure check');
 });
+
+// Invoke-Step on its own (not a dry run): a cmdlet error that does not stop the script, like
+// Remove-Item on a folder in use, must count as failed, not done.
+test('Invoke-Step counts a non-terminating cmdlet error as failed', { skip: !win }, () => {
+  const src = require('fs').readFileSync(PS1, 'utf8');
+  const fn = src.match(/  function Invoke-Step[\s\S]*?\r?\n  }\r?\n/)[0];
+  const script = [
+    '$DryRun = $false; $results = New-Object System.Collections.ArrayList',
+    'function Add-Result($state, $name, $note) { [void]$results.Add([pscustomobject]@{ state = $state; name = $name }) }',
+    'function Update-Path {}', fn,
+    "Invoke-Step 'bad' 'x' { Write-Error 'cannot remove: in use' }",
+    "Invoke-Step 'good' 'y' { 'ok' }",
+    "$results | ForEach-Object { 'RESULT ' + $_.state + ' ' + $_.name }",
+  ].join('\n');
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-Command', '-'], { encoding: 'utf8', input: script });
+  const out = (r.stdout || '') + (r.stderr || '');
+  assert.match(out, /RESULT failed bad/);
+  assert.match(out, /RESULT done good/);
+});
