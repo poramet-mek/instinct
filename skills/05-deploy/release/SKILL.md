@@ -19,4 +19,4 @@ Manage a controlled release following GitFlow and Change Committee standards.
    - **Rollout & Rollback Plan:** Step-by-step deploy order, health checks, and exact rollback trigger/commands.
 4. **PR, Tag & Merge (ask owner before merging/tagging/pushing prod):**
    - UAT/Pre-release tag: `v<X.Y.Z>-rc.N`
-   - Open a PR into `main` for review when using PR-based releases; after approval and merge into `main`, tag `v<X.Y.Z>` (and merge `main` back into `develop` if present).
+   - Open a PR into `main` for review when using PR-based releases; after approval and merge into `main`, push tag `v<X.Y.Z>`, publish the GitHub Release (`gh release create v<X.Y.Z>`), and merge `main` back into `develop` if present.
