@@ -1,0 +1,40 @@
+name: Instinct Issue Agent
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  run-agent:
+    if: >-
+      github.event.sender.login == github.repository_owner &&
+      (
+        (github.event_name == 'issues' && github.event.label.name == 'ready') ||
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Handle GitHub Issue #${{ github.event.issue.number }} in this repository.
+            Follow repo conventions:
+            - Keep skills lean (<= 80 lines) and self-contained.
+            - Update README.md and test/installer.test.js if skill counts or installer behavior change.
+            - Run `npm test` and ensure all tests pass before finishing.
+            - Never commit or push directly to `main`.
+            - Never add `Co-Authored-By` or AI trailers to commits or PRs.
+            - Open a Pull Request targeting `main` with `Closes #${{ github.event.issue.number }}`.

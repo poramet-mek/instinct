@@ -1,0 +1,28 @@
+name: Feature Request
+description: Propose a new skill, playbook, or CLI capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal / Problem
+      description: What do you want to build or improve, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true when this is done?
+      placeholder: |
+        - [ ] ...
+        - [ ] npm test passes
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / References
+      description: Links, screenshots, or target files (optional)
+    validations:
+      required: false
