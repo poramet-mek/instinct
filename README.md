@@ -9,7 +9,7 @@ Portions adapted from or inspired by:
 - [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, © 2026 Matt Pocock)
 - [Cursor pstack](https://github.com/cursor/plugins/tree/main/pstack) (by Lauren Tan / `@poteto`)
 
-## 22 Skills Across 6 Core Phases (1 Orchestrator + 21 Atomic Skills)
+## 23 Skills Across 6 Core Phases (1 Orchestrator + 22 Atomic Skills)
 
 | Phase | Skill | Mode | Purpose |
 |---|---|---|---|
@@ -23,6 +23,7 @@ Portions adapted from or inspired by:
 | `01-planning` | `instinct-plan` | User-only | Requirement record, scope/non-goals, task breakdown, estimates |
 | `02-design` | `instinct-standards` | User-only | `ARCHITECTURE.md`, `CODING_STANDARDS.md`, folder layout, ADRs |
 | `02-design` | `architect` | On-demand | Topology, data flow, module boundaries, security controls |
+| `02-design` | `instinct-flow` | User-only | Owner-approved UX flow spec (Mermaid + traceability) & flow conformance checks |
 | `02-design` | `instinct-figma` | User-only | Figma MCP (1 frame/node at a time) & visual parity checks |
 | `03-build` | `tdd` | On-demand | Red → minimal green → refactor in vertical slices |
 | `03-build` | `git-workflow` | On-demand | GitFlow (`main`, `develop`, `feat/*`, `release/*`, `hotfix/*`) |
@@ -41,7 +42,7 @@ Portions adapted from or inspired by:
 ```sh
 npx github:poramet-mek/instinct install --apply                          # all agents (claude, codex, agy, gemini)
 npx github:poramet-mek/instinct install --apply --target claude,codex    # selected agents
-npx github:poramet-mek/instinct list                                     # list all 22 skills
+npx github:poramet-mek/instinct list                                     # list all 23 skills
 npx github:poramet-mek/instinct uninstall --apply                        # removes only instinct skills
 ```
 

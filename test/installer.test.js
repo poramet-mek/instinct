@@ -16,7 +16,7 @@ const {
 } = require('../install/installer');
 
 const SKILLS_ROOT = path.resolve(__dirname, '..', 'skills');
-const EXPECTED_COUNT = 22;
+const EXPECTED_COUNT = 23;
 const EXPECTED_PLAYBOOKS = [
   'bug-fix.md',
   'explore.md',
@@ -33,7 +33,7 @@ const EXPECTED_PLAYBOOKS = [
 ];
 
 describe('instinct v2 skills & installer', () => {
-  it('discovers all 22 lean skills with valid frontmatter and all 12 playbooks', () => {
+  it('discovers all 23 lean skills with valid frontmatter and all 12 playbooks', () => {
     const skills = discoverSkills(SKILLS_ROOT);
     assert.equal(skills.length, EXPECTED_COUNT);
 
@@ -68,7 +68,7 @@ describe('instinct v2 skills & installer', () => {
     }
   });
 
-  it('install --apply links/copies all 22 skills and uninstall --apply removes only managed ones', () => {
+  it('install --apply links/copies all 23 skills and uninstall --apply removes only managed ones', () => {
     const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'instinct-apply-'));
     try {
       const targets = getTargets(tmpHome);

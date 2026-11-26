@@ -12,8 +12,9 @@ Review code like a surgeon: cut only where necessary, never without a diagnosis.
 
 1. Read the full diff first and form a model of what the change intends to do.
 2. Check documented project rules (`CLAUDE.md`, `AGENTS.md`, `CODING_STANDARDS.md`, `ARCHITECTURE.md`, `CONTEXT-MAP.md`, `docs/domain-model.md`, `docs/specs/`, `docs/concepts/`, ADRs) if present—flag stale docs/links or missing ADRs as `WILL ROT` when structure or boundaries changed.
-3. Trace callers/callees as far as needed to confirm or disprove each suspicion. Report only survivors.
-4. **Do not report:** personal style, taste, formatting, or anything a linter/formatter already catches.
+3. If the change touches UI covered by a flow file in `docs/specs/flows/`, run `instinct-flow` Mode B on it; a missing or differing edge is `WILL BREAK`.
+4. Trace callers/callees as far as needed to confirm or disprove each suspicion. Report only survivors.
+5. **Do not report:** personal style, taste, formatting, or anything a linter/formatter already catches.
 
 ## Severity Tiers (ranked worst first)
 
