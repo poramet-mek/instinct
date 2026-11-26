@@ -17,6 +17,7 @@ Save the settled plan as a **Spec** under `docs/specs/<slug>.md` (unless the rep
 3. **Constraints:** Security, privacy/regulatory, hardware/offline, and performance/SLA requirements.
 4. **Task Breakdown & Estimate:**
    - Break work into small vertical slices (Design, Build + Unit Test, E2E/QA, Release).
+   - For multi-screen UI with branch, error, or cancel paths, add a "Flow approved" slice (`instinct-flow`) before any Figma or UI build slice.
    - Estimate effort per slice (optimistic / realistic) and call out dependencies and blockers.
 5. **Assumptions & Risks:** List any open assumptions and mitigation steps.
 

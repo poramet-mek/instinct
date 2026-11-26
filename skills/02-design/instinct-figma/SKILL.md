@@ -15,6 +15,7 @@ Bridge Figma designs and production UI using the Figma MCP without blowing up co
 ## Modes
 
 ### A. Implement from Figma
+0. If `docs/specs/flows/<ID>*.md` exists, read it first and build every node and edge it lists, not only what the frame shows. If a flow node has no Figma frame, stop and report the gap instead of guessing.
 1. Fetch the target frame/component node via Figma MCP.
 2. Extract design tokens (colors, typography, spacing, radii) and map them to the repo's existing theme/design system first.
 3. Implement layout, responsive behavior, and interactive states (loading, empty, error, disabled).

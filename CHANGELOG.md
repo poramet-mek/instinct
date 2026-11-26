@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `instinct-flow` skill: owner-approved UX flow spec (`docs/specs/flows/`, Mermaid + traceability table) and flow conformance check.
+
+### Changed
+- `ui-figma` and `feature` playbooks run `instinct-flow` before Figma/UI build; `ui-figma` adds a conformance step.
+- `instinct-figma`, `instinct-review`, `instinct-qa-doc`, and `instinct-plan` read the flow file when one exists.
+
 ## 2.0.1 (2026-11-25)
 
 ### Changed
